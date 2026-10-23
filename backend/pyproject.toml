@@ -1,12 +1,15 @@
 # Tool settings only. Dependencies live in requirements.txt / requirements-dev.txt.
 
 [tool.pytest.ini_options]
-pythonpath = ["."]
-testpaths = ["tests"]
+# ".." puts the repo root on the path so tests can import the top-level deploy/ package.
+pythonpath = [".", ".."]
+testpaths = ["tests", "../deploy/tests"]
 
 [tool.ruff]
 line-length = 100
 target-version = "py314"
+# Where first-party code lives, so imports of app.* and the repo-root deploy.* sort as our own.
+src = [".", ".."]
 
 [tool.ruff.lint]
 # E/F: pycodestyle and pyflakes basics. I: import order. B: likely bugs. UP: outdated syntax.
@@ -24,4 +27,6 @@ extend-immutable-calls = ["fastapi.Depends"]
 [tool.mypy]
 strict = true
 python_version = "3.14"
-files = ["app"]
+# deploy/ is the pipeline's own tooling (repo root); it is held to the same strict standard.
+files = ["app", "../deploy"]
+exclude = ["../deploy/tests/"]

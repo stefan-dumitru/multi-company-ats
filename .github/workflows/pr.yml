@@ -49,10 +49,11 @@ jobs:
           cache-dependency-path: backend/requirements-dev.txt
       - name: Install dependencies
         run: pip install -r requirements-dev.txt
+      # ../deploy is the pipeline's own tooling; --config makes it use the same rules as the app.
       - name: Lint
-        run: ruff check .
+        run: ruff check --config pyproject.toml . ../deploy
       - name: Format check
-        run: ruff format --check .
+        run: ruff format --check --config pyproject.toml . ../deploy
       - name: Type check
         run: mypy
       - name: Apply migrations to an empty database
