@@ -35,8 +35,11 @@ RUN useradd --uid 10001 --no-create-home --shell /usr/sbin/nologin appuser
 USER appuser
 
 EXPOSE 8000
-# Uses the same endpoint as the pipeline's smoke test. Python, because the slim image has no curl.
+# Hosting platforms such as Railway tell the container which port to use through $PORT; locally it
+# defaults to 8000. Python, not curl, because the slim image has no curl.
 HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
-    CMD ["python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=8)"]
+    CMD ["python", "-c", "import os, urllib.request; urllib.request.urlopen('http://127.0.0.1:%s/health' % os.environ.get('PORT', '8000'), timeout=8)"]
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Shell form so ${PORT:-8000} is expanded; `exec` makes uvicorn the main process, so it receives the
+# stop signal and shuts down cleanly instead of being killed after a timeout.
+CMD ["sh", "-c", "exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
