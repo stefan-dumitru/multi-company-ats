@@ -1,0 +1,20 @@
+# Keeps the build context small and, more importantly, keeps secrets and local state out of images.
+.git
+.github
+.env
+.env.*
+!.env.example
+
+**/node_modules
+**/.venv
+**/__pycache__
+**/.pytest_cache
+**/.mypy_cache
+**/.ruff_cache
+frontend/dist
+
+specifications
+*.md
+docker-compose.yml
+Dockerfile
+.dockerignore
