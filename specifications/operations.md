@@ -60,8 +60,11 @@ Applies (the app is deployed to staging and production), at a minimal level:
 ## Environments & Configuration
 
 - Which environments exist (local / staging / production), and how closely staging mirrors prod:
-  - **Local:** `docker compose` runs Postgres, MinIO (S3 stand-in) and Mailpit (SMTP catcher); the
-    backend and frontend run on the host.
+  - **Local:** `docker compose` runs Postgres (on host port 5433, so it cannot clash with a
+    Postgres already installed on the machine), plus Mailpit (SMTP catcher, from Phase 3) and
+    MinIO (S3 stand-in, from Phase 5); the backend and frontend run on the host. Use
+    `127.0.0.1`, not `localhost`, in database URLs: on Windows with Docker Desktop `localhost`
+    tries IPv6 first and hangs.
   - **Staging:** Railway project with its own database, bucket and secrets; deployed automatically
     on every merge to `main`; seeded demo company so the live app can be shown.
   - **Production:** Railway project, separate database, bucket and secrets; same container image

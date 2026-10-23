@@ -41,33 +41,38 @@ Fill these in as soon as they exist, and delete any row this project doesn't hav
 rather than guessing an equivalent, and tell me if one is missing instead of inventing a
 workaround.
 
-None of these exist yet: the project has no code. The entries below are what Phase 0 is expected
-to create. Verify and correct each one when it first runs.
+All Python commands run from `backend/` with its virtual environment active
+(`python -m venv .venv`, then activate). The backend reads its settings from environment
+variables only and does not load `.env` itself: load it into your shell first (the README shows
+how). Verified in Phase 0 unless marked otherwise.
 
 | Purpose | Command |
 |---|---|
-| Install dependencies | `pip install -r backend/requirements.txt` (inside a venv); `npm --prefix frontend ci` |
-| Run in development | `docker compose up -d` (Postgres, MinIO, Mailpit); `uvicorn app.main:app --reload` from `backend/`; `npm --prefix frontend run dev` |
-| Run tests | `pytest` from `backend/`; `npm --prefix frontend test`; end-to-end: `npx playwright test` from `frontend/` |
-| Run a single test file | `pytest tests/<file>.py` from `backend/`; `npm --prefix frontend test -- <file>` |
-| Lint / format | `ruff check backend` and `ruff format --check backend`; `npm --prefix frontend run lint` and `npm --prefix frontend run format:check` |
-| Type check | `mypy backend/app`; `npm --prefix frontend run typecheck` |
-| Build for production | `docker build -t ats .` (builds the frontend and the backend into one image) |
-| Database migration | `alembic upgrade head` from `backend/`; new migration: `alembic revision --autogenerate -m "<message>"` |
+| Install dependencies | `pip install -r requirements-dev.txt` in `backend/`; `npm ci` in `frontend/` |
+| Start the local database | `docker compose up -d --wait` from the repo root (Postgres on `127.0.0.1:5433`); stop with `docker compose stop` |
+| Run in development | `uvicorn app.main:app --reload` in `backend/`; `npm run dev` in `frontend/` (proxies `/health` to port 8000) |
+| Run tests | `pytest` in `backend/` (needs the local database: one test applies the migrations to a throwaway database); `npm test` in `frontend/`. End-to-end (Playwright): not set up yet, Phase 11 |
+| Run a single test file | `pytest tests/<file>.py` in `backend/`; `npm test -- <file>` in `frontend/` |
+| Lint / format | `ruff check .` and `ruff format --check .` in `backend/` (`ruff format .` to fix); `npm run lint` and `npm run format:check` in `frontend/` (`npm run format` to fix) |
+| Type check | `mypy` in `backend/` (settings in `pyproject.toml`); `npm run typecheck` in `frontend/` |
+| Build for production | `docker build -t ats .` from the repo root (builds frontend and backend into one image); `npm run build` for the frontend alone |
+| Database migration | `alembic upgrade head` in `backend/`; new migration: `alembic revision --autogenerate -m "<message>"` |
 
 ## Project Structure
 
-Planned layout (nothing is created yet):
+What exists after Phase 0, and (marked *planned*) what later phases add:
 
-- `backend/app/` — FastAPI app. `routers/` (HTTP layer only), `services/` (business rules and
+- `backend/app/` — FastAPI app. Today: `main.py` (routes `/health`, `/ready`), `config.py`
+  (all environment settings, in one place), `db.py` (engine and session), `frontend.py` (serves
+  the built React app). *Planned:* `routers/` (HTTP layer only), `services/` (business rules and
   tenant-scoped data access), `models/` (SQLAlchemy), `schemas/` (request/response models),
   `auth/` (sessions, permissions, Google OAuth), `worker/` (background job loop and handlers),
-  `integrations/` (SMTP, S3, Google Calendar), `config.py`.
-- `backend/alembic/` — migrations. `backend/tests/` — pytest, including the tenant-isolation and
-  role x endpoint tests.
-- `frontend/src/` — React app; `frontend/e2e/` — Playwright tests.
-- `.github/workflows/` — `pr.yml` (checks on pull requests) and `deploy.yml` (staging, then
-  production with manual approval and rollback).
+  `integrations/` (SMTP, S3, Google Calendar).
+- `backend/alembic/` — migrations (`versions/`). `backend/tests/` — pytest. *Planned:* the
+  tenant-isolation and role x endpoint tests (Phase 2).
+- `frontend/src/` — React + TypeScript app. *Planned:* `frontend/e2e/` for Playwright (Phase 11).
+- `.github/workflows/` — `pr.yml` (checks on every pull request). *Planned:* `deploy.yml`
+  (staging, then production with manual approval and rollback, Phase 1).
 - `Dockerfile`, `docker-compose.yml`, `.env.example` — packaging and local services.
 - `specifications/` — the spec files; read selectively (see SPECS.md).
 
@@ -178,8 +183,12 @@ scope, data sensitivity) live in [specifications/security.md](specifications/sec
 ## Git Conventions
 
 - **Branch per change:** `feature/<short-name>`, `fix/<short-name>`; `chore/<short-name>` for
-  CI, tooling and dependency changes. The project is not a git repository yet: `git init` is part
-  of Phase 0, and I'll ask before doing it.
+  CI, tooling and dependency changes.
+- **Remote and merging:** GitHub `stefan-dumitru/multi-company-ats`. `main` is protected: changes
+  arrive only through a pull request whose four checks (`backend`, `frontend`, `security`,
+  `image`) pass, with linear history, and the rule applies to admins too. I merge with
+  "rebase and merge", so keep each commit one logical change. Never weaken the checks or the
+  protection to get a change through; bring it to me.
 - **Commit messages:** imperative mood, subject under ~70 characters, explaining *why* in the body
   when the change isn't self-evident. e.g. `Add stock check before checkout`.
 - **One logical change per commit.** Don't mix a refactor with a feature.
