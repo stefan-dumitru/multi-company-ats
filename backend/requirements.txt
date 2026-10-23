@@ -1,0 +1,7 @@
+# Runtime dependencies (installed in the Docker image). Direct dependencies only, pinned exactly;
+# pip resolves the rest. Changing a pin is a normal pull request, tested by CI.
+fastapi==0.161.1
+uvicorn==0.54.0
+SQLAlchemy==2.1.6
+alembic==1.20.1
+psycopg[binary]==3.3.6
