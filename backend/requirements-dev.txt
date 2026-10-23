@@ -1,0 +1,7 @@
+# Development and CI only: tests and code-quality tools. Not installed in the Docker image.
+-r requirements.txt
+pytest==9.1.1
+httpx==0.28.1
+ruff==0.17.2
+mypy==2.4.0
+pip-audit==2.10.1
