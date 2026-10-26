@@ -1,7 +1,9 @@
 """Command line used by the deploy workflow to put a version live, or take it back.
 
-    python deploy/release.py deploy   ghcr.io/<owner>/<repo>:<40-char commit sha>
-    python deploy/release.py rollback <image that was running before>
+    python -m deploy.release deploy   ghcr.io/<owner>/<repo>:<40-char commit sha>
+    python -m deploy.release rollback <image that was running before>
+
+Run from the repository root (the imports need it), hence `-m` rather than a file path.
 
 Settings come from environment variables (set per GitHub environment, so the same workflow code
 targets staging or production): RAILWAY_TOKEN, RAILWAY_ENVIRONMENT_ID, RAILWAY_SERVICE_ID, APP_URL.
