@@ -1,18 +1,25 @@
 # Checks that must pass before a pull request can merge. The four jobs run in parallel; branch
 # protection on `main` requires all of them (set up in Phase 0, step 7).
+#
+# Also reusable (`workflow_call`): deploy.yml runs these same checks on the exact commit it is
+# about to ship, because "branch must be up to date" is off and a rebase-merge creates new commits.
 name: PR checks
 
 on:
   pull_request:
+  workflow_call:
 
 # Least privilege: these jobs only read the repository.
 permissions:
   contents: read
 
-# A new push to the same PR cancels the older, now-pointless run.
+# A new push to the same PR cancels the older, now-pointless run. This must not apply when deploy.yml
+# calls us on a push to main: cancelling would stop a commit's checks (and so its deployment) just
+# because a newer commit arrived. Outside pull requests every run gets its own group, so none
+# cancels or queues behind another; deploy.yml serialises deployments itself.
 concurrency:
-  group: pr-${{ github.ref }}
-  cancel-in-progress: true
+  group: ${{ github.event_name == 'pull_request' && format('pr-{0}', github.ref) || format('run-{0}', github.run_id) }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   backend:
