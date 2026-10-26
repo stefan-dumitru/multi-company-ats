@@ -12,7 +12,27 @@ accepts pull requests whose checks pass.
 
 Phase 0 is done: a small FastAPI backend (`/health`, `/ready`), a React page that shows whether
 the backend is healthy, one Docker image that serves both, and the pull request pipeline. Hiring
-features start in Phase 2. Deployment (staging and production) is Phase 1.
+features start in Phase 2.
+
+Phase 1 adds deployment: every merge to `main` goes to staging automatically and to production
+after a manual approval, with automatic rollback.
+
+- Staging: https://multi-company-ats-staging.up.railway.app
+- Production: https://multi-company-ats-production.up.railway.app
+
+## How a change ships
+
+`.github/workflows/deploy.yml` runs on every merge to `main`:
+
+1. `checks`: the pull request checks again, on the exact commit that will ship.
+2. `publish`: builds the Docker image once and pushes it to GitHub's container registry, tagged
+   with the commit.
+3. `deploy-staging`: points the Railway staging service at that image, waits until Railway says it
+   is live (database migrations run first), then smoke-tests the public URL.
+4. `deploy-production`: waits for a manual approval, then does the same with the same image. If
+   anything fails, the previous image is restored automatically and the run is marked failed.
+
+The deploy tooling lives in [deploy/](deploy/) and is tested like the app.
 
 ## What the pipeline checks
 
