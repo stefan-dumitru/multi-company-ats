@@ -20,11 +20,15 @@ blank, because it will get designed against.
 Applies in a light form: the app holds candidate personal data and hiring records, though it is a
 portfolio deployment.
 
-- Uptime/availability target: [TODO]
+- Uptime/availability target: best effort, no SLA (portfolio deployment, one instance per
+  environment on Railway's Hobby plan).
 - Acceptable planned-maintenance downtime, and when it can happen: [TODO]
-- Backup frequency, and how much data loss is tolerable (RPO): Platform-provided daily database
-  backups (confirm that Railway's plan provides them: [TODO]). RPO figure: [TODO]. Backup of the
-  resume bucket: [TODO]
+- Backup frequency, and how much data loss is tolerable (RPO): Railway's volume backups appear to
+  be a Pro-plan feature (a Railway staff answer in their community forum, not in the docs we could
+  read), so on the Hobby plan we assume there are **no platform backups** until verified in the
+  Railway dashboard. Today both databases hold only demo data. Before any real personal data goes
+  in, add scheduled `pg_dump` backups to an S3 bucket or move to a plan with backups. RPO figure:
+  [TODO]. Backup of the resume bucket: [TODO]
 - How long a full restore may take (RTO), and whether a restore has ever actually been tested:
   RTO [TODO]. One restore must be tested into a scratch database before production go-live —
   an untested backup is not a backup.
@@ -36,9 +40,9 @@ Distinct from `security.md`'s audit logging: that answers "who changed record X,
 
 Always, once the app runs anywhere but your own machine:
 
-- Structured application logging: JSON logs to stdout (collected by Railway), one line per request
-  with a request id, method, path, status, duration, `user_id` and `company_id`. Not emails,
-  names, or any request body. Module: `backend/app/logging.py` [TODO name].
+- Structured application logging: JSON logs to stdout (collected by Railway, which keeps them
+  7 days on the Hobby plan), one line per request with a request id, method, path, status,
+  duration, `user_id` and `company_id`. Not emails, names, or any request body. Module: `backend/app/logging.py` [TODO name].
 - A health check endpoint, and what it actually verifies: `GET /health` returns 200 only if the
   process is up **and** the database answers a trivial query; `GET /ready` also confirms
   migrations are at head. The deploy pipeline's smoke test calls `/health`. Neither endpoint
@@ -107,8 +111,9 @@ Applies (the app is deployed to staging and production), at a minimal level:
   Railway service settings (set once through its API, per environment): health check path
   `/health` (120 s) and pre-deploy command `alembic upgrade head`. If a new version fails its
   migration or health check, Railway keeps the old one serving. The image package on GHCR is
-  public so Railway can pull it without credentials. Railway keeps old images only for a limited
-  time, so a rollback target can disappear after a long enough gap [TODO: confirm for our plan].
+  public so Railway can pull it without credentials. Railway keeps the image of a removed
+  deployment for 72 hours on the Hobby plan, but rollback pulls the previous image again from
+  GHCR (which has no such expiry), so a rollback target does not disappear.
 
 ## Database Migrations
 
