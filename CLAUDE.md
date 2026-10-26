@@ -60,7 +60,7 @@ how). Verified in Phase 0 unless marked otherwise.
 
 ## Project Structure
 
-What exists after Phase 0, and (marked *planned*) what later phases add:
+What exists after Phase 1, and (marked *planned*) what later phases add:
 
 - `backend/app/` — FastAPI app. Today: `main.py` (routes `/health`, `/ready`), `config.py`
   (all environment settings, in one place), `db.py` (engine and session), `frontend.py` (serves
@@ -71,8 +71,11 @@ What exists after Phase 0, and (marked *planned*) what later phases add:
 - `backend/alembic/` — migrations (`versions/`). `backend/tests/` — pytest. *Planned:* the
   tenant-isolation and role x endpoint tests (Phase 2).
 - `frontend/src/` — React + TypeScript app. *Planned:* `frontend/e2e/` for Playwright (Phase 11).
-- `.github/workflows/` — `pr.yml` (checks on every pull request). *Planned:* `deploy.yml`
-  (staging, then production with manual approval and rollback, Phase 1).
+- `.github/workflows/` — `pr.yml` (checks on every pull request), `deploy.yml` (publish, staging,
+  approved production, rollback).
+- `deploy/` — the pipeline's own tooling, standard library only: `smoke_test.py`,
+  `railway_api.py`, `release.py` (run as `python -m deploy.release` from the repo root); tests in
+  `deploy/tests/`, run by the backend's `pytest`, linted and type-checked with the backend.
 - `Dockerfile`, `docker-compose.yml`, `.env.example` — packaging and local services.
 - `specifications/` — the spec files; read selectively (see SPECS.md).
 

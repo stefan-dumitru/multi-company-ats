@@ -65,15 +65,21 @@ Applies (the app is deployed to staging and production), at a minimal level:
     MinIO (S3 stand-in, from Phase 5); the backend and frontend run on the host. Use
     `127.0.0.1`, not `localhost`, in database URLs: on Windows with Docker Desktop `localhost`
     tries IPv6 first and hangs.
-  - **Staging:** Railway project with its own database, bucket and secrets; deployed automatically
-    on every merge to `main`; seeded demo company so the live app can be shown.
-  - **Production:** Railway project, separate database, bucket and secrets; same container image
-    as staging, deployed only after a manual approval.
+  - **Staging:** one Railway environment (`staging`) with its own Postgres, bucket and secrets;
+    deployed automatically on every merge to `main`; seeded demo company so the live app can be
+    shown. https://multi-company-ats-staging.up.railway.app
+  - **Production:** a second environment (`production`) in the same Railway project, with a
+    separate database, bucket and secrets; same container image as staging, deployed only after a
+    manual approval. https://multi-company-ats-production.up.railway.app
   - Staging and production run the same image built once; only configuration differs.
 - How configuration and secrets differ per environment: All configuration is environment
   variables read in one module (`backend/app/config.py`). Secrets live only in GitHub
   Environments secrets (CI/CD) and Railway variables (runtime) — never in the repo. `.env` is
-  git-ignored; `.env.example` lists the variable names. Full variable list: [TODO]
+  git-ignored; `.env.example` lists the variable names. Railway app service variables:
+  `DATABASE_URL` (built from the environment's Postgres service with Railway references, using
+  the `postgresql+psycopg://` prefix) and `PORT`. GitHub environment secret `RAILWAY_TOKEN` and
+  variables `RAILWAY_ENVIRONMENT_ID`, `RAILWAY_SERVICE_ID`, `APP_URL`, set separately on `staging`
+  and `production`. Full list for later phases: [TODO]
 - How a release ships, and how it gets rolled back when it's wrong: GitHub Actions
   (`.github/workflows/`). Pull request: lint, type check, backend and frontend tests against a real
   Postgres, migrations applied from scratch, tenant-isolation and role-matrix tests, dependency and
@@ -84,8 +90,25 @@ Applies (the app is deployed to staging and production), at a minimal level:
   the old image still works against the new schema. CI provider is GitHub Actions. Deploy
   mechanism: the pipeline builds one image, pushes it to GitHub Container Registry (GHCR) tagged
   with the commit SHA, and points the Railway staging and production services at that tag, so
-  rollback is "point back at the previous tag". The exact Railway call (API/CLI token, how the
-  token is stored): [TODO — decided in Phase 1's plan]
+  rollback is "point back at the previous tag".
+
+  As built (`.github/workflows/deploy.yml`, tooling in `deploy/`): on a push to `main` the jobs
+  run in order `checks` (the PR checks again, on the exact commit), `publish`, `deploy-staging`,
+  `deploy-production`. A deploy job runs `python -m deploy.release deploy <image>`, which records
+  the image currently running, sets the new commit-tagged image through Railway's GraphQL API,
+  waits until Railway reports that deployment live, and then smoke-tests the app's public URL
+  (`/health`, `/ready`, and the page). Only `main` can deploy: the deploy workflow never runs on
+  pull requests, and both GitHub environments accept deployments from `main` only.
+  `production` requires a reviewer; the job holds no secrets until it is approved. Each Railway
+  token is a project token limited to one environment, kept as the `RAILWAY_TOKEN` secret of the
+  matching GitHub environment. If the deploy or smoke test fails, a final step runs
+  `deploy.release rollback <recorded image>`; the job still ends red. A manual run with
+  `simulate_smoke_failure` fails a step after a good deploy, to prove that rollback.
+  Railway service settings (set once through its API, per environment): health check path
+  `/health` (120 s) and pre-deploy command `alembic upgrade head`. If a new version fails its
+  migration or health check, Railway keeps the old one serving. The image package on GHCR is
+  public so Railway can pull it without credentials. Railway keeps old images only for a limited
+  time, so a rollback target can disappear after a long enough gap [TODO: confirm for our plan].
 
 ## Database Migrations
 
@@ -97,8 +120,8 @@ Applies once staging/production exist (until then, rebuilding locally is fine).
 
 - How schema changes ship: Alembic migrations, backward-compatible (expand/contract). A release
   only adds nullable columns/tables or compatible changes; removing or renaming something takes
-  two releases (stop using it, then drop it). Migrations run as a pipeline step before the new
-  version starts serving.
+  two releases (stop using it, then drop it). Migrations run as Railway's pre-deploy command
+  (`alembic upgrade head`) before the new version starts serving; if it fails, the deploy fails.
 - Is every migration reversible, and if not, what's the recovery plan? Rollback is "redeploy the
   previous image", not "run a down-migration"; the schema stays at the newer version. Down
   migrations are not required. Recovery from a bad data migration is the database backup.
