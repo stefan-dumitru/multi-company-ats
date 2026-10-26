@@ -1,6 +1,6 @@
 # Runs on every merge to `main`: re-checks the exact commit, builds the image once, and publishes it
-# to GitHub's container registry, then deploys that image to Railway staging. Production comes in
-# a later step of Phase 1.
+# to GitHub's container registry, deploys that image to Railway staging, and then, after a manual
+# approval, the same image to production (restoring the previous version if production fails).
 #
 # Triggers ONLY on pushes to main, never on pull requests, so a pull request can never reach the
 # secrets this workflow will use to deploy.
@@ -9,6 +9,14 @@ name: Deploy
 on:
   push:
     branches: [main]
+  # Manual run, used only to prove the rollback (see simulate_smoke_failure). Environments only
+  # accept deployments from `main`, so this cannot ship any other branch.
+  workflow_dispatch:
+    inputs:
+      simulate_smoke_failure:
+        description: "TEST ONLY: fail after the production deploy, to prove the automatic rollback"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -108,3 +116,43 @@ jobs:
           RAILWAY_SERVICE_ID: ${{ vars.RAILWAY_SERVICE_ID }}
           APP_URL: ${{ vars.APP_URL }}
         run: python -m deploy.release deploy "${{ needs.publish.outputs.image }}"
+
+  deploy-production:
+    name: deploy-production
+    needs: [publish, deploy-staging]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    # This environment requires a reviewer: the job waits here until it is approved, and only then
+    # gets the production secret. Only `main` may deploy to it.
+    environment: production
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+      - name: Deploy to production and smoke-test it
+        id: deploy
+        # Writes `previous_image` (what was running before) to this step's outputs before changing
+        # anything, so the rollback below knows its target even if the deploy fails half way.
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+          RAILWAY_ENVIRONMENT_ID: ${{ vars.RAILWAY_ENVIRONMENT_ID }}
+          RAILWAY_SERVICE_ID: ${{ vars.RAILWAY_SERVICE_ID }}
+          APP_URL: ${{ vars.APP_URL }}
+        run: python -m deploy.release deploy "${{ needs.publish.outputs.image }}"
+      - name: Simulate a failure after the deploy (test only)
+        if: inputs.simulate_smoke_failure
+        run: |
+          echo "::error::Simulated failure: this proves the rollback below, it is not a real problem."
+          exit 1
+      - name: Roll back to the previous version
+        # Runs only when something above failed AND a previous version is known. The step ends the
+        # job red either way: the deploy still failed, even if the rollback worked.
+        if: failure() && steps.deploy.outputs.previous_image != ''
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+          RAILWAY_ENVIRONMENT_ID: ${{ vars.RAILWAY_ENVIRONMENT_ID }}
+          RAILWAY_SERVICE_ID: ${{ vars.RAILWAY_SERVICE_ID }}
+          APP_URL: ${{ vars.APP_URL }}
+          PREVIOUS_IMAGE: ${{ steps.deploy.outputs.previous_image }}
+        run: python -m deploy.release rollback "$PREVIOUS_IMAGE"
