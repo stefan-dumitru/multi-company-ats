@@ -1,6 +1,6 @@
 # Runs on every merge to `main`: re-checks the exact commit, builds the image once, and publishes it
-# to GitHub's container registry. Later steps of Phase 1 add the staging and production deployments
-# to this file.
+# to GitHub's container registry, then deploys that image to Railway staging. Production comes in
+# a later step of Phase 1.
 #
 # Triggers ONLY on pushes to main, never on pull requests, so a pull request can never reach the
 # secrets this workflow will use to deploy.
@@ -84,3 +84,27 @@ jobs:
             echo "digest: ${{ steps.build.outputs.digest }}"
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
+
+  deploy-staging:
+    name: deploy-staging
+    needs: publish
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    # Holds the staging secret and variables (RAILWAY_TOKEN, RAILWAY_ENVIRONMENT_ID,
+    # RAILWAY_SERVICE_ID, APP_URL). Only `main` may deploy to this environment.
+    environment: staging
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+      - name: Deploy to staging and smoke-test it
+        # Railway runs `alembic upgrade head` (its pre-deploy command) before the new version takes
+        # traffic. The smoke test starts only after Railway reports this deployment live, so it
+        # cannot pass against the old version that is still serving.
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+          RAILWAY_ENVIRONMENT_ID: ${{ vars.RAILWAY_ENVIRONMENT_ID }}
+          RAILWAY_SERVICE_ID: ${{ vars.RAILWAY_SERVICE_ID }}
+          APP_URL: ${{ vars.APP_URL }}
+        run: python -m deploy.release deploy "${{ needs.publish.outputs.image }}"
