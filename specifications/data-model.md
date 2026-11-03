@@ -201,7 +201,9 @@ above.
 
 ### AuditLog — Transactional
 
-- **Purpose:** Answers "who changed what, when" for hiring decisions.
+- **Purpose:** Answers "who changed what, when" for hiring decisions. The table is introduced in
+  Phase 2 (role changes and deactivations are audited from the start); Phase 6 adds the hiring
+  actions.
 - **Key fields:** `id`, `company_id` (null for candidate-only actions), `actor_user_id`,
   `action`, `entity_type`, `entity_id`, `old_value` (JSON), `new_value` (JSON), `created_at`.
 - **Relationships:** points at other entities by type and id; no foreign key, so history
@@ -227,8 +229,9 @@ above.
 
 - **Purpose:** Server-side login session behind the httpOnly cookie, so idle timeout and
   revocation (deactivation, password change, account deletion) work.
-- **Key fields:** `id` (hash of the cookie token), `user_id`, `created_at`, `last_seen_at`,
-  `expires_at`, `revoked_at`.
+- **Key fields:** `id` (hash of the cookie token), `user_id`, `csrf_token` (echoed by the SPA in
+  the `X-CSRF-Token` header on every state-changing request), `created_at`, `last_seen_at`,
+  `expires_at` (the absolute lifetime), `revoked_at`.
 - **Relationships:** belongs to `User`.
 - **Lifecycle:** Created at login; `last_seen_at` slides the idle timeout; expired rows are
   purged by a scheduled job [TODO].
@@ -237,8 +240,10 @@ above.
 
 ### Invitation, UserToken, OAuthIdentity, GoogleCalendarConnection — Technical
 
-- **Invitation:** `id`, `company_id`, `email`, `role`, `token_hash`, `invited_by`, `expires_at`
-  (7 days), `accepted_at`. Single-use; the token is stored hashed.
+- **Invitation:** `id`, `company_id`, `email`, `role` (staff roles only), `token_hash`,
+  `invited_by`, `created_at`, `expires_at` (7 days), `accepted_at`, `revoked_at` (set when a
+  re-send replaces the link). Single-use; the token is stored hashed. At most one live
+  invitation per company and email.
 - **UserToken:** `id`, `user_id`, `type` (`email_verification` | `password_reset`), `token_hash`,
   `expires_at` (24 hours / 1 hour), `used_at`. Single-use; hashed.
 - **OAuthIdentity:** `id`, `user_id`, `provider` (`google`), `provider_subject`, `linked_at`.
@@ -246,6 +251,14 @@ above.
 - **GoogleCalendarConnection:** `user_id`, `refresh_token_encrypted`, `scopes`, `connected_at`.
   The refresh token is encrypted at rest (see `security.md` > Data Protection). Removing the
   connection deletes the row.
+
+### LoginAttempt — Technical
+
+- **Purpose:** Counts failed logins so repeated guessing can be refused (rate limiting, see
+  `security.md`). Introduced in Phase 2.
+- **Key fields:** `id`, `email_hash` (SHA-256 of the lower-cased email: the table counts attempts
+  per address, it does not need to know the address), `ip_address`, `attempted_at`.
+- **Lifecycle:** Insert-only; old rows are purged [TODO window, with the other purges below].
 
 ### BackgroundJob — Technical
 
