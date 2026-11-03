@@ -42,4 +42,7 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
 
 # Shell form so ${PORT:-8000} is expanded; `exec` makes uvicorn the main process, so it receives the
 # stop signal and shuts down cleanly instead of being killed after a timeout.
-CMD ["sh", "-c", "exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
+# --proxy-headers: behind the hosting platform's proxy every request comes from the proxy; this makes
+# the app see the real client address (login rate limiting is per address). Trusting "*" is safe
+# because the container is only reachable through the platform's proxy.
+CMD ["sh", "-c", "exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000} --proxy-headers --forwarded-allow-ips='*'"]
