@@ -60,14 +60,15 @@ how). Verified in Phase 0 unless marked otherwise.
 
 ## Project Structure
 
-What exists after Phase 2 step 2, and (marked *planned*) what later phases add:
+What exists after Phase 2 step 3, and (marked *planned*) what later phases add:
 
 - `backend/app/` — FastAPI app. Today: `main.py` (routes `/health`, `/ready`), `config.py`
   (all environment settings, in one place), `db.py` (engine and session), `frontend.py` (serves
   the built React app), `models/` (SQLAlchemy), `schemas/` (request/response models), `routers/`
-  (HTTP layer only), `auth/` (passwords, sessions, rate limiting, current user). *Planned:*
-  `auth/permissions.py`, `services/` (business rules and tenant-scoped data access), `worker/`
-  (background job loop and handlers), `integrations/` (SMTP, S3, Google Calendar).
+  (HTTP layer only), `auth/` (passwords, sessions, rate limiting, current user, `permissions.py`:
+  the role table and `require_permission`), `services/` (business rules and tenant-scoped data
+  access; `users.py` is the pattern to copy). *Planned:* `worker/` (background job loop and
+  handlers), `integrations/` (SMTP, S3, Google Calendar).
 - `backend/alembic/` — migrations (`versions/`). `backend/tests/` — pytest. *Planned:* the
   tenant-isolation and role x endpoint tests (Phase 2).
 - `frontend/src/` — React + TypeScript app. *Planned:* `frontend/e2e/` for Playwright (Phase 11).

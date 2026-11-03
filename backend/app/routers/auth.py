@@ -5,8 +5,9 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.auth.current_user import get_current_session, get_current_user, require_csrf
+from app.auth.current_user import get_current_session
 from app.auth.passwords import hash_password, verify_password
+from app.auth.permissions import Permission, public_route, require_permission
 from app.auth.rate_limit import clear_failures, is_locked_out, record_failure
 from app.auth.sessions import (
     SESSION_COOKIE_NAME,
@@ -31,7 +32,7 @@ def _dummy_hash() -> str:
     return hash_password("a password nobody has chosen")
 
 
-@router.post("/login", response_model=SessionInfo)
+@router.post("/login", response_model=SessionInfo, dependencies=[Depends(public_route)])
 def login(
     payload: LoginRequest, request: Request, response: Response, db: Session = Depends(get_db)
 ) -> SessionInfo:
@@ -76,12 +77,17 @@ def login(
 
 @router.get("/me", response_model=SessionInfo)
 def me(
-    user: User = Depends(get_current_user), session: UserSession = Depends(get_current_session)
+    user: User = Depends(require_permission(Permission.ACCOUNT_SELF)),
+    session: UserSession = Depends(get_current_session),
 ) -> SessionInfo:
     return SessionInfo(user=UserOut.model_validate(user), csrf_token=session.csrf_token)
 
 
-@router.post("/logout", status_code=204, dependencies=[Depends(require_csrf)])
+@router.post(
+    "/logout",
+    status_code=204,
+    dependencies=[Depends(require_permission(Permission.ACCOUNT_SELF))],
+)
 def logout(
     response: Response,
     session: UserSession = Depends(get_current_session),
