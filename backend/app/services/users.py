@@ -6,7 +6,7 @@ routers never query these tables directly.
 
 import uuid
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.models import User
@@ -32,3 +32,16 @@ def get_company_user(db: Session, current_user: User, user_id: uuid.UUID) -> Use
     if user is None:
         raise NotFoundError
     return user
+
+
+def normalize_email(email: str) -> str:
+    """Emails are compared case-insensitively, so they are stored trimmed and lowercase."""
+    return email.strip().lower()
+
+
+def email_is_taken(db: Session, email: str) -> bool:
+    """Whether any account (staff or candidate, any company) already uses this email."""
+    return (
+        db.scalar(select(User.id).where(func.lower(User.email) == normalize_email(email)))
+        is not None
+    )

@@ -12,12 +12,14 @@ import psycopg
 import pytest
 from alembic import command
 from alembic.config import Config
+from fastapi.testclient import TestClient
 from sqlalchemy import Engine, create_engine, text
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import Session
 
 from app.config import get_database_url
-from app.db import Base
+from app.db import Base, get_db
+from app.main import app
 
 ALEMBIC_INI = Path(__file__).resolve().parents[1] / "alembic.ini"
 
@@ -65,3 +67,15 @@ def db(scratch_engine: Engine) -> Iterator[Session]:
     tables = ", ".join(quote(table.name) for table in Base.metadata.sorted_tables)
     with scratch_engine.begin() as connection:
         connection.execute(text(f"TRUNCATE {tables} CASCADE"))
+
+
+@pytest.fixture
+def client(db: Session, monkeypatch: pytest.MonkeyPatch) -> Iterator[TestClient]:
+    """The real app, talking to the test database, over https like a real browser would."""
+    # The tests must not depend on the developer's shell (a local .env turns the Secure flag off).
+    monkeypatch.delenv("COOKIE_SECURE", raising=False)
+    app.dependency_overrides[get_db] = lambda: db
+    # https, because the session cookie is Secure and a client would not send it over plain http.
+    with TestClient(app, base_url="https://testserver") as test_client:
+        yield test_client
+    app.dependency_overrides.clear()

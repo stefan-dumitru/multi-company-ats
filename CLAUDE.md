@@ -60,7 +60,7 @@ how). Verified in Phase 0 unless marked otherwise.
 
 ## Project Structure
 
-What exists after Phase 2 step 3, and (marked *planned*) what later phases add:
+What exists after Phase 2 step 4, and (marked *planned*) what later phases add:
 
 - `backend/app/` — FastAPI app. Today: `main.py` (routes `/health`, `/ready`), `config.py`
   (all environment settings, in one place), `db.py` (engine and session), `frontend.py` (serves

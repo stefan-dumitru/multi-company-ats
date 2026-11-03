@@ -1,28 +1,13 @@
 """Login, logout and "who am I" through the real HTTP layer (security.md > Authentication)."""
 
-from collections.abc import Iterator
-
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
-from app.db import get_db
-from app.main import app
 from app.models import Role, User
 from tests.factories import DEFAULT_PASSWORD, make_company, make_user
 
 SAME_FAILURE = {"detail": "Invalid email or password."}
-
-
-@pytest.fixture
-def client(db: Session, monkeypatch: pytest.MonkeyPatch) -> Iterator[TestClient]:
-    # The tests must not depend on the developer's shell (a local .env turns the Secure flag off).
-    monkeypatch.delenv("COOKIE_SECURE", raising=False)
-    app.dependency_overrides[get_db] = lambda: db
-    # https, because the session cookie is Secure and a client would not send it over plain http.
-    with TestClient(app, base_url="https://testserver") as test_client:
-        yield test_client
-    app.dependency_overrides.clear()
 
 
 @pytest.fixture
