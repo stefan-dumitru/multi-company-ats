@@ -100,18 +100,22 @@ The roles table above says *what* each role can do. This section says *how*.
 - **Main flow:** Visitor enters company name, their name, email, password. The app creates the
   `Company` and a `User` with role company admin in one transaction, sends a verification email,
   and logs them in with limited access until the email is verified.
-- **Rules & edge cases:** Email already registered -> generic error that does not reveal whether
-  the account exists [TODO: exact wording]. Company name need not be unique. The transaction is
-  all-or-nothing: no company without an admin. What an unverified admin can do before
-  verification: [TODO].
+- **Rules & edge cases:** Email already registered -> one generic error ("We couldn't create this
+  account. If you already have one, log in instead."). It does not state that the account exists,
+  but until emails exist (Phase 3) the failure itself still hints at it; a fully non-revealing flow
+  needs an email to the owner. Company name need not be unique. The transaction is all-or-nothing:
+  no company without an admin. Until Phase 3 sends verification emails, an unverified admin has
+  full access; Phase 3 adds the "limited access until verified" rule.
 
 ### Invite and deactivate staff
 
 - **Role(s):** Company admin.
 - **Trigger:** Users page.
 - **Main flow:** Admin enters email and role (recruiter or interviewer, or another admin). The app
-  creates an `Invitation` and emails a single-use link. The invitee sets a password and joins the
-  company with that role.
+  creates an `Invitation` and emails a single-use link (until Phase 3 the admin is shown the link
+  once, at creation, and passes it on themselves). The invitee sets a name and password and joins
+  the company with that role; the role and company come from the invitation, never from the
+  invitee.
 - **Rules & edge cases:** An email that already has an account (including a candidate account) is
   rejected: one email is one account. Invitations expire after 7 days. Re-sending invalidates the old
   link. Deactivating a user blocks login and revokes their sessions but keeps all their data;

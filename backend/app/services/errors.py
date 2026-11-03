@@ -4,3 +4,11 @@ class NotFoundError(Exception):
     Deliberately one error for both (CLAUDE.md): "forbidden" would confirm that an id exists in
     another company.
     """
+
+
+class EmailAlreadyRegistered(Exception):
+    """An account with this email exists (one email is one account, across all companies)."""
+
+
+class InvalidInvitation(Exception):
+    """The invitation link is unknown, used, revoked or expired. Callers give one answer for all."""

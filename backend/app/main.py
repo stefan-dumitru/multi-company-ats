@@ -15,7 +15,7 @@ from app.config import get_static_dir
 from app.db import get_db
 from app.error_handlers import add_error_handlers
 from app.frontend import mount_frontend
-from app.routers import auth
+from app.routers import auth, companies, invitations
 
 logger = logging.getLogger(__name__)
 
@@ -24,6 +24,8 @@ ALEMBIC_INI = Path(__file__).resolve().parents[1] / "alembic.ini"
 app = FastAPI(title="ATS")
 add_error_handlers(app)
 app.include_router(auth.router)
+app.include_router(companies.router)
+app.include_router(invitations.router)
 
 
 def get_head_revision() -> str | None:

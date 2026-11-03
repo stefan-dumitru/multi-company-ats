@@ -5,17 +5,16 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.auth.cookies import set_session_cookie
 from app.auth.current_user import get_current_session
 from app.auth.passwords import hash_password, verify_password
 from app.auth.permissions import Permission, public_route, require_permission
 from app.auth.rate_limit import clear_failures, is_locked_out, record_failure
 from app.auth.sessions import (
     SESSION_COOKIE_NAME,
-    absolute_lifetime,
     create_session,
     revoke_session,
 )
-from app.config import get_cookie_secure
 from app.db import get_db
 from app.models import User, UserSession
 from app.schemas.auth import LoginRequest, SessionInfo, UserOut
@@ -63,15 +62,7 @@ def login(
     token, session = create_session(db, user, now)
     db.commit()
 
-    response.set_cookie(
-        SESSION_COOKIE_NAME,
-        token,
-        max_age=int(absolute_lifetime(user.role).total_seconds()),
-        httponly=True,  # JavaScript cannot read it
-        secure=get_cookie_secure(),  # only sent over HTTPS
-        samesite="lax",
-        path="/",
-    )
+    set_session_cookie(response, token, user.role)
     return SessionInfo(user=UserOut.model_validate(user), csrf_token=session.csrf_token)
 
 
