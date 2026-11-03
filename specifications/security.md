@@ -19,17 +19,23 @@ Which identity source this app uses is in `functional.md` > Authentication & Ide
 This section covers how it's implemented and how it fails.
 
 - If login is local: method: Email + password, with email verification. Google OAuth as an
-  additional method (Phase 8). Password hashing: bcrypt or argon2 per `CLAUDE.md`; library
-  [TODO — needs approval]. Password rules: minimum 12 characters, no composition rules (length
-  over symbols). Login is rate-limited per account and per IP; limits and lockout behavior are
-  chosen in Phase 2's plan: [TODO]
+  additional method (Phase 8). Password hashing: bcrypt or argon2 per `CLAUDE.md`; library:
+  `argon2-cffi` (Argon2id). Password rules: minimum 12 and maximum 128 characters, no composition
+  rules (length over symbols). Login is rate-limited per account and per IP: 5 failed attempts per
+  email and 20 per IP within 15 minutes, then HTTP 429 until the window passes. Failures are kept
+  in `LoginAttempt` (email stored hashed); unknown emails count too, so the lockout reveals
+  nothing; a successful login clears that email's failures. The client address comes from the
+  platform proxy (`--proxy-headers`).
 - Session handling: Server-side sessions stored in the `Session` table, referenced by an opaque
   random token in an httpOnly, Secure, SameSite cookie. The SPA is served from the same origin as
   the API, so there is no CORS and no token in JavaScript. State-changing requests require a CSRF
-  header: the session cookie is SameSite=Lax, and every state-changing request must carry a custom
-  header the SPA sets (exact token scheme chosen in Phase 2's plan: [TODO]). Idle timeout: 30 minutes for staff roles, 7 days for candidates.
-  Absolute lifetime: [TODO]. Sessions are revoked on deactivation, password change and account
-  deletion.
+  header: the session cookie is SameSite=Lax, and every state-changing request must echo a per-session
+  CSRF token (synchronizer token: stored on the session, returned by login and `GET /api/auth/me`,
+  sent back in the `X-CSRF-Token` header, compared in constant time). Idle timeout: 30 minutes for
+  staff roles, 7 days for candidates. Absolute lifetime: 12 hours for staff, 30 days for
+  candidates. The cookie is `ats_session`; `COOKIE_SECURE=false` (local development only) is the
+  one way to turn off its Secure flag. Sessions are revoked on deactivation, password change and
+  account deletion.
 - MFA required: No (non-goal for v1).
 - If the identity comes from an external provider (Google): an unknown Google email creates a
   candidate account, never a staff account. An existing account is linked only if Google reports

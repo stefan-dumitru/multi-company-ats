@@ -11,27 +11,7 @@ from sqlalchemy.orm import Session
 
 from app.db import Base
 from app.models import Company, Invitation, Role, User
-
-
-def make_company(db: Session, name: str = "Acme") -> Company:
-    company = Company(name=name)
-    db.add(company)
-    db.flush()
-    return company
-
-
-def make_user(
-    db: Session, *, email: str, role: Role, company: Company | None, full_name: str = "Test User"
-) -> User:
-    user = User(
-        email=email,
-        full_name=full_name,
-        role=role,
-        company_id=company.id if company else None,
-    )
-    db.add(user)
-    db.flush()
-    return user
+from tests.factories import make_company, make_user
 
 
 def test_the_models_match_the_migrations(scratch_engine: Engine) -> None:

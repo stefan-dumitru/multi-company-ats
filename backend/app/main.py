@@ -13,12 +13,14 @@ from sqlalchemy.orm import Session
 from app.config import get_static_dir
 from app.db import get_db
 from app.frontend import mount_frontend
+from app.routers import auth
 
 logger = logging.getLogger(__name__)
 
 ALEMBIC_INI = Path(__file__).resolve().parents[1] / "alembic.ini"
 
 app = FastAPI(title="ATS")
+app.include_router(auth.router)
 
 
 def get_head_revision() -> str | None:

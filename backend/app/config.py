@@ -16,3 +16,8 @@ def get_database_url() -> str:
         # Fail loudly and early: a missing setting should stop startup, not surface as a 500 later.
         raise RuntimeError("DATABASE_URL is not set. See .env.example.")
     return url
+
+
+def get_cookie_secure() -> bool:
+    """Whether the session cookie is HTTPS-only. On by default; switch off only for local http."""
+    return os.environ.get("COOKIE_SECURE", "true").strip().lower() not in ("false", "0", "no")
