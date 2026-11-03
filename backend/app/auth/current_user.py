@@ -33,7 +33,7 @@ def get_current_user(
     return user
 
 
-def require_csrf(request: Request, session: UserSession = Depends(get_current_session)) -> None:
+def verify_csrf(request: Request, session: UserSession) -> None:
     """Reject a state-changing request that does not echo the session's CSRF token.
 
     A malicious site can make the browser send our cookie, but it cannot read the token, so it

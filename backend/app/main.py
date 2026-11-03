@@ -10,8 +10,10 @@ from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
+from app.auth.permissions import public_route
 from app.config import get_static_dir
 from app.db import get_db
+from app.error_handlers import add_error_handlers
 from app.frontend import mount_frontend
 from app.routers import auth
 
@@ -20,6 +22,7 @@ logger = logging.getLogger(__name__)
 ALEMBIC_INI = Path(__file__).resolve().parents[1] / "alembic.ini"
 
 app = FastAPI(title="ATS")
+add_error_handlers(app)
 app.include_router(auth.router)
 
 
@@ -42,7 +45,7 @@ def get_applied_revision(db: Session = Depends(get_db)) -> str | None:
 
 # Both endpoints are deliberately unauthenticated (the deploy pipeline and the platform call them)
 # and return only a status word: no versions, hostnames or error text.
-@app.get("/health")
+@app.get("/health", dependencies=[Depends(public_route)])
 def health(db: Session = Depends(get_db)) -> JSONResponse:
     """200 only if the process is up and the database answers."""
     try:
@@ -54,7 +57,7 @@ def health(db: Session = Depends(get_db)) -> JSONResponse:
     return JSONResponse({"status": "ok"})
 
 
-@app.get("/ready")
+@app.get("/ready", dependencies=[Depends(public_route)])
 def ready(
     head: str | None = Depends(get_head_revision),
     applied: str | None = Depends(get_applied_revision),

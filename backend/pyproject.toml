@@ -21,8 +21,9 @@ select = ["E", "F", "I", "B", "UP"]
 known-third-party = ["alembic"]
 
 [tool.ruff.lint.flake8-bugbear]
-# `Depends(...)` in a parameter default is how FastAPI declares dependencies, not a bug.
-extend-immutable-calls = ["fastapi.Depends"]
+# `Depends(...)` in a parameter default is how FastAPI declares dependencies, not a bug; neither is
+# `require_permission(...)`, which builds the dependency passed to it.
+extend-immutable-calls = ["fastapi.Depends", "app.auth.permissions.require_permission"]
 
 [tool.mypy]
 strict = true
