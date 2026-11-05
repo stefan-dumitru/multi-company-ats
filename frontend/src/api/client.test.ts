@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { stubFetch } from '@/test-utils'
-import { api, ApiError, setCsrfToken, setUnauthorizedHandler } from './client'
+import { api, ApiError, messageOf, setCsrfToken, setUnauthorizedHandler } from './client'
 
 describe('api client', () => {
   beforeEach(() => {
@@ -155,5 +155,16 @@ describe('api client', () => {
     await api('/api/users').catch(() => undefined)
 
     expect(handler).not.toHaveBeenCalled()
+  })
+
+  it('turns any failure into text that is safe to show', () => {
+    expect(messageOf(new ApiError(409, 'That email already has an account.'))).toBe(
+      'That email already has an account.',
+    )
+    // An unexpected bug must not leak its message (file names, stack text) to the screen.
+    expect(messageOf(new TypeError("Cannot read properties of undefined (reading 'x')"))).toBe(
+      'Something went wrong. Please try again.',
+    )
+    expect(messageOf('a string')).toBe('Something went wrong. Please try again.')
   })
 })
