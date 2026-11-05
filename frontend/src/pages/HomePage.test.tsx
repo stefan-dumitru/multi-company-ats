@@ -1,7 +1,7 @@
 import { screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { setCsrfToken, setUnauthorizedHandler } from '@/api/client'
-import { recruiterUser, sessionFor, stubFetch } from '@/test-utils'
+import { adminUser, recruiterUser, sessionFor, stubFetch } from '@/test-utils'
 import { renderApp } from '@/test-render'
 
 describe('HomePage', () => {
@@ -47,5 +47,17 @@ describe('HomePage', () => {
 
     expect(await screen.findByText('Welcome, <b>bold</b>.')).toBeInTheDocument()
     expect(document.querySelector('main b')).toBeNull()
+  })
+
+  it('points an admin to the page where the team is managed', async () => {
+    stubFetch({
+      'GET /api/auth/me': { status: 200, body: sessionFor(adminUser) },
+      'GET /health': { status: 200, body: { status: 'ok' } },
+    })
+    renderApp('/')
+
+    await screen.findByText(/welcome, ada admin/i)
+    const links = screen.getAllByRole('link', { name: /manage users|invite your team/i })
+    expect(links.some((link) => link.getAttribute('href') === '/users')).toBe(true)
   })
 })

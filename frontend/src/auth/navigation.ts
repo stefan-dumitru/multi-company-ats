@@ -20,3 +20,11 @@ export function navItemsFor(role: Role): NavItem[] {
       return []
   }
 }
+
+/**
+ * Where someone who has just signed up lands. A new company's admin has one job to do first:
+ * invite their team. One rule here, so two redirects can never disagree.
+ */
+export function landingPathFor(role: Role): string {
+  return role === 'company_admin' ? '/users' : '/'
+}
