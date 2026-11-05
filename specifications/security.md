@@ -60,11 +60,18 @@ This section covers how it's implemented and how it fails.
     so ids cannot be probed across tenants.
   - Blind scoring is enforced in the scorecard query (return only the caller's own scorecard until
     they have submitted theirs), not in the UI.
-- Two automated tests gate every pull request:
-  - Tenant isolation: two companies are created, and every company-scoped endpoint is called as a
-    user of company A against company B's ids. All must be denied.
-  - Role x endpoint matrix, generated from the route table, asserting each role gets the expected
-    allow/deny on each route.
+- Automated tests gate every pull request (all in `backend/tests/`, run by the `backend` job):
+  - Route gate (`test_route_gate.py`): every route declares `require_permission` or
+    `public_route`. The audit follows routers included into the app (FastAPI does not flatten
+    them) and refuses, rather than skips, anything it cannot read: an `include_router` with a
+    prefix or extra dependencies, or an unrecognised kind of route.
+  - Role x endpoint matrix (`test_route_matrix.py`): generated from the route table and compared
+    with a hand-written `POLICY`; every role is called against every route live. A new route, or
+    a changed permission, fails until `POLICY` is updated in the same pull request.
+  - Tenant isolation (`test_tenant_isolation.py`): every route must be classified. Id-based routes
+    are attacked as company A against company B's ids and must answer 404 (each attack has a
+    control that must succeed on A's own data); lists must contain only the caller's rows; B's
+    data must be untouched afterwards.
 
 ## Data Protection
 
