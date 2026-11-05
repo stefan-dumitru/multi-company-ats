@@ -46,6 +46,16 @@ export default function Layout() {
               </div>
             </>
           )}
+          {state.status === 'anonymous' && (
+            <nav aria-label="Account" className="ml-auto flex items-center gap-4 text-sm">
+              <Link to="/login" className="underline-offset-4 hover:underline">
+                Log in
+              </Link>
+              <Link to="/register" className="underline-offset-4 hover:underline">
+                Register your company
+              </Link>
+            </nav>
+          )}
         </div>
         {logoutError && (
           <p role="alert" className="mx-auto max-w-4xl px-4 pb-3 text-sm text-destructive">
