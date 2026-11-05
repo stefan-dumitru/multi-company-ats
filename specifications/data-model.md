@@ -213,6 +213,8 @@ above.
   the anonymized user row.
 - **Constraints / invariants:** `old_value`/`new_value` never contain passwords, tokens, or
   resume contents.
+- **Actions written so far (Phase 2):** `user.role_changed`, `user.deactivated`,
+  `user.reactivated` (values hold only the changed field, e.g. `{"role": "recruiter"}`).
 
 ### File — Technical
 

@@ -12,3 +12,7 @@ class EmailAlreadyRegistered(Exception):
 
 class InvalidInvitation(Exception):
     """The invitation link is unknown, used, revoked or expired. Callers give one answer for all."""
+
+
+class LastAdminError(Exception):
+    """The change would leave a company without an active admin (data-model.md > Company)."""
