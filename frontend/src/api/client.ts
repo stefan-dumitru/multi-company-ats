@@ -29,6 +29,11 @@ export function setUnauthorizedHandler(handler: (() => void) | null): void {
   onUnauthorized = handler
 }
 
+/** Text safe to show a user for any failure: the API's message, or a generic one. */
+export function messageOf(error: unknown): string {
+  return error instanceof ApiError ? error.message : GENERIC_ERROR
+}
+
 interface RequestOptions {
   method?: 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE'
   body?: unknown

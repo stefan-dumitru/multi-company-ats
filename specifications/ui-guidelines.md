@@ -30,7 +30,9 @@ in that feature's Plan Mode session, informed by this file — not spec'd upfron
 
 ## Information Architecture
 
-- Top-level navigation structure: [TODO — decided per role in the Phase 2 plan]
+- Top-level navigation structure: a header with the app name. Visitors see "Log in" and
+  "Register your company"; a logged-in user sees their name, "Log out" and the links for their
+  role (`navItemsFor` in `src/auth/navigation.ts`, one place to change).
 - How roles (from functional.md) map to what nav/screens they see:
   - Candidate: Jobs (search), My applications, Profile (resume, talent pool opt-in, delete
     account).
@@ -67,12 +69,19 @@ in that feature's Plan Mode session, informed by this file — not spec'd upfron
 Not discussed in the interview; the conventions below are left for the first UI phase to decide
 with you.
 
-- Error message convention by category: [TODO]
+- Error message convention by category: a problem with a form is shown as text under it
+  (`role="alert"`, destructive colour), using the server's own message when it has one; failures
+  the user cannot act on (server errors) get one generic message, never the server's text; an
+  unreachable server says so. A rejected password field is cleared, other answers are kept.
 - Success/confirmation message convention: [TODO]
-- Loading-state convention for anything async: [TODO]
+- Loading-state convention for anything async: a page waiting for data shows "Loading…"
+  (`role="status"`); a button that started a request is disabled and changes its label ("Logging
+  in…"), so a double click cannot submit twice.
 - Empty-state convention: [TODO]
 - Client vs. server validation: The server is authoritative (see `CLAUDE.md` > Security
-  Baseline). How the client mirrors the rules without drifting: [TODO]
+  Baseline). The client does not copy the rules: it uses only the browser's own `required` and
+  `type="email"` as a convenience, states rules as hint text (for example the 12-character
+  password), and shows the server's answer. So there is nothing to drift.
 - Session-expiry behavior (staff sessions idle out after 30 minutes): the next request that is
   answered 401 sends the user to the login page with "Your session has expired. Please log in
   again." and the page they were on is remembered. Unsaved input does not survive: revisit if it

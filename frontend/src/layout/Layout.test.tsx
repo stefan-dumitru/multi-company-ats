@@ -49,7 +49,29 @@ describe('Layout', () => {
 
     await screen.findByText('page content')
     expect(screen.queryByRole('button', { name: /log out/i })).not.toBeInTheDocument()
-    expect(screen.queryByRole('navigation')).not.toBeInTheDocument()
+    expect(screen.queryByRole('navigation', { name: 'Main' })).not.toBeInTheDocument()
+  })
+
+  it('offers a visitor ways to log in or register a company', async () => {
+    stubFetch({ 'GET /api/auth/me': { status: 401 } })
+
+    renderLayout()
+
+    expect(await screen.findByRole('link', { name: 'Log in' })).toHaveAttribute('href', '/login')
+    expect(screen.getByRole('link', { name: 'Register your company' })).toHaveAttribute(
+      'href',
+      '/register',
+    )
+  })
+
+  it('does not offer those to someone who is already logged in', async () => {
+    stubFetch({ 'GET /api/auth/me': { status: 200, body: sessionFor(adminUser) } })
+
+    renderLayout()
+
+    await screen.findByText('Ada Admin')
+    expect(screen.queryByRole('link', { name: 'Log in' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Register your company' })).not.toBeInTheDocument()
   })
 
   it('shows an admin who they are, a Users link and a log out button', async () => {
