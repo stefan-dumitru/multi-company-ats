@@ -1,5 +1,7 @@
 /// <reference types="vitest/config" />
+import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
+import path from 'node:path'
 import { defineConfig } from 'vite'
 
 // The backend runs on 127.0.0.1 (not "localhost"): on Windows, "localhost" can resolve to IPv6 first
@@ -7,7 +9,11 @@ import { defineConfig } from 'vite'
 const backend = 'http://127.0.0.1:8000'
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), tailwindcss()],
+  resolve: {
+    // "@/components/ui/button" instead of "../../components/ui/button"; mirrored in tsconfig.
+    alias: { '@': path.resolve(import.meta.dirname, 'src') },
+  },
   server: {
     proxy: {
       '/health': backend,
