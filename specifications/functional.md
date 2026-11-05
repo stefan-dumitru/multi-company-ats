@@ -120,7 +120,11 @@ The roles table above says *what* each role can do. This section says *how*.
   rejected: one email is one account. Invitations expire after 7 days. Re-sending invalidates the old
   link. Deactivating a user blocks login and revokes their sessions but keeps all their data;
   their jobs and pending interviews are flagged "needs reassignment" for the admin. An admin
-  cannot deactivate the last active admin of a company. Changing a user's role while they have
+  cannot deactivate or demote the last active admin of a company (checked under a lock, so two
+  admins acting at the same moment cannot empty the company of admins). An admin can reactivate a
+  deactivated user: they log in again with their old password, but sessions revoked at
+  deactivation stay revoked. Repeating an action that is already in effect changes nothing and
+  writes no audit row. Changing a user's role while they have
   pending work: [TODO].
 
 ### Candidate applies to a job
