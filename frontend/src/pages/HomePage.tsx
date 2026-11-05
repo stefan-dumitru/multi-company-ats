@@ -8,7 +8,19 @@ export default function HomePage() {
   return (
     <section className="space-y-3">
       <h1 className="text-2xl font-semibold">Applicant Tracking System</h1>
-      {state.status === 'authenticated' && <p>Welcome, {state.user.full_name}.</p>}
+      {state.status === 'authenticated' && (
+        <>
+          <p>Welcome, {state.user.full_name}.</p>
+          {state.user.role === 'company_admin' && (
+            <p>
+              <Link to="/users" className="text-primary underline underline-offset-4">
+                Manage users
+              </Link>{' '}
+              to invite your team.
+            </p>
+          )}
+        </>
+      )}
       {state.status === 'anonymous' && (
         <p>
           <Link to="/register" className="text-primary underline underline-offset-4">

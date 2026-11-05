@@ -73,11 +73,17 @@ with you.
   (`role="alert"`, destructive colour), using the server's own message when it has one; failures
   the user cannot act on (server errors) get one generic message, never the server's text; an
   unreachable server says so. A rejected password field is cleared, other answers are kept.
-- Success/confirmation message convention: [TODO]
+- Success/confirmation message convention: a change shows its result in place (the list reloads
+  from the server, so the screen always shows what is really stored) rather than a pop-up. Hard to
+  undo actions ask first in a dialog that names the person and the consequence (deactivating a
+  user); easy to undo ones (reactivating) do not. A one-time secret, such as a new invitation
+  link, is shown in its own panel that says it appears only once, and disappears when dismissed.
+  Your own row never offers role changes or deactivation: ask another admin.
 - Loading-state convention for anything async: a page waiting for data shows "Loading…"
   (`role="status"`); a button that started a request is disabled and changes its label ("Logging
   in…"), so a double click cannot submit twice.
-- Empty-state convention: [TODO]
+- Empty-state convention: where a list can legitimately be empty, a short muted sentence in place
+  of the table ("No invitations yet.").
 - Client vs. server validation: The server is authoritative (see `CLAUDE.md` > Security
   Baseline). The client does not copy the rules: it uses only the browser's own `required` and
   `type="email"` as a convenience, states rules as hint text (for example the 12-character

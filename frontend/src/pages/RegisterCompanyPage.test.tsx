@@ -1,7 +1,7 @@
 import { screen, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { setCsrfToken, setUnauthorizedHandler } from '@/api/client'
-import { adminUser, sessionFor, stubFetch } from '@/test-utils'
+import { adminUser, recruiterUser, sessionFor, stubFetch } from '@/test-utils'
 import { fillIn, press, renderApp } from '@/test-render'
 
 function fillTheForm() {
@@ -25,7 +25,8 @@ describe('RegisterCompanyPage', () => {
     const { calls } = stubFetch({
       'GET /api/auth/me': { status: 401 },
       'POST /api/companies': { status: 201, body: sessionFor(adminUser) },
-      'GET /health': { status: 200, body: { status: 'ok' } },
+      'GET /api/users': { status: 200, body: [] },
+      'GET /api/invitations': { status: 200, body: [] },
     })
     renderApp('/register')
     await screen.findByLabelText(/company name/i)
@@ -33,7 +34,8 @@ describe('RegisterCompanyPage', () => {
     fillTheForm()
     press(/register/i)
 
-    expect(await screen.findByText(/welcome, ada admin/i)).toBeInTheDocument()
+    // A new company's admin has one job to do first: invite their team.
+    expect(await screen.findByRole('heading', { name: 'Users' })).toBeInTheDocument()
     expect(calls.find((c) => c.path === '/api/companies')?.body).toEqual({
       company_name: 'Acme Corp',
       full_name: 'Ada Admin',
@@ -46,14 +48,15 @@ describe('RegisterCompanyPage', () => {
     const { calls } = stubFetch({
       'GET /api/auth/me': { status: 401 },
       'POST /api/companies': { status: 201, body: sessionFor(adminUser) },
-      'GET /health': { status: 200, body: { status: 'ok' } },
+      'GET /api/users': { status: 200, body: [] },
+      'GET /api/invitations': { status: 200, body: [] },
     })
     renderApp('/register')
     await screen.findByLabelText(/company name/i)
 
     fillTheForm()
     press(/register/i)
-    await screen.findByText(/welcome/i)
+    await screen.findByRole('heading', { name: 'Users' })
 
     const body = calls.find((c) => c.path === '/api/companies')?.body as Record<string, unknown>
     expect(Object.keys(body).sort()).toEqual(['company_name', 'email', 'full_name', 'password'])
@@ -127,14 +130,26 @@ describe('RegisterCompanyPage', () => {
     expect(slow).toHaveBeenCalledTimes(1)
   })
 
-  it('sends someone who is already logged in home', async () => {
+  it('sends someone who is already logged in to where their role starts: home for a recruiter', async () => {
     stubFetch({
-      'GET /api/auth/me': { status: 200, body: sessionFor(adminUser) },
+      'GET /api/auth/me': { status: 200, body: sessionFor(recruiterUser) },
       'GET /health': { status: 200, body: { status: 'ok' } },
     })
     renderApp('/register')
 
-    expect(await screen.findByText(/welcome, ada admin/i)).toBeInTheDocument()
+    expect(await screen.findByText(/welcome, rae recruiter/i)).toBeInTheDocument()
+    expect(screen.queryByLabelText(/company name/i)).not.toBeInTheDocument()
+  })
+
+  it('and to the Users page for a company admin', async () => {
+    stubFetch({
+      'GET /api/auth/me': { status: 200, body: sessionFor(adminUser) },
+      'GET /api/users': { status: 200, body: [] },
+      'GET /api/invitations': { status: 200, body: [] },
+    })
+    renderApp('/register')
+
+    expect(await screen.findByRole('heading', { name: 'Users' })).toBeInTheDocument()
     expect(screen.queryByLabelText(/company name/i)).not.toBeInTheDocument()
   })
 })

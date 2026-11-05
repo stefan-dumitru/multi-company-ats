@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
-import { Link, Navigate, useNavigate } from 'react-router'
+import { Link, Navigate } from 'react-router'
 import { api, messageOf } from '@/api/client'
 import { useAuth } from '@/auth/AuthContext'
+import { landingPathFor } from '@/auth/navigation'
 import type { SessionInfo } from '@/auth/types'
 import AuthCard from '@/components/AuthCard'
 import FormField from '@/components/FormField'
@@ -10,7 +11,6 @@ import { Button } from '@/components/ui/button'
 
 export default function RegisterCompanyPage() {
   const { state, startSession } = useAuth()
-  const navigate = useNavigate()
   const [companyName, setCompanyName] = useState('')
   const [fullName, setFullName] = useState('')
   const [email, setEmail] = useState('')
@@ -22,7 +22,9 @@ export default function RegisterCompanyPage() {
     return <p role="status">Loading…</p>
   }
   if (state.status === 'authenticated') {
-    return <Navigate to="/" replace />
+    // Also what happens right after registering: starting the session makes this page re-render
+    // as "authenticated", and this one redirect is the only thing that moves the user on.
+    return <Navigate to={landingPathFor(state.user.role)} replace />
   }
 
   async function handleSubmit(event: FormEvent) {
@@ -37,7 +39,6 @@ export default function RegisterCompanyPage() {
         expectUnauthorized: true,
       })
       startSession(info)
-      navigate('/', { replace: true })
     } catch (failure) {
       setError(messageOf(failure))
       setPassword('')
