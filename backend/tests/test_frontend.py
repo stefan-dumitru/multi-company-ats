@@ -7,7 +7,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from app.config import get_static_dir
-from app.frontend import mount_frontend
+from app.frontend import is_client_side_route, mount_frontend
 
 
 @pytest.fixture
@@ -51,11 +51,56 @@ def test_api_routes_are_not_shadowed_by_the_frontend(client: TestClient) -> None
     assert response.json() == {"status": "ok"}
 
 
-def test_unknown_paths_are_404_not_the_app(client: TestClient) -> None:
-    # Returning index.html for every unknown URL would hide mistyped API paths behind a 200.
-    response = client.get("/does-not-exist")
+@pytest.mark.parametrize("path", ["/login", "/users", "/accept-invitation", "/users/123/edit"])
+def test_client_side_routes_serve_the_app_so_refresh_and_shared_links_work(
+    client: TestClient, path: str
+) -> None:
+    # The browser asks the server for /login on a refresh or a pasted link; only the React router
+    # inside index.html knows what that page is.
+    response = client.get(path)
+
+    assert response.status_code == 200
+    assert "the app" in response.text
+
+
+@pytest.mark.parametrize("path", ["/api/nope", "/api/users/xyz/nope", "/api"])
+def test_unknown_api_paths_stay_404_and_never_return_the_app(client: TestClient, path: str) -> None:
+    # A mistyped API call must fail visibly, not get a 200 HTML page it cannot parse.
+    response = client.get(path)
 
     assert response.status_code == 404
+    assert "the app" not in response.text
+
+
+@pytest.mark.parametrize("path", ["/assets/missing.js", "/favicon-missing.png", "/a/b/c.css"])
+def test_missing_files_stay_404_instead_of_html_pretending_to_be_a_script(
+    client: TestClient, path: str
+) -> None:
+    response = client.get(path)
+
+    assert response.status_code == 404
+    assert "the app" not in response.text
+
+
+@pytest.mark.parametrize(
+    ("path", "expected"),
+    [
+        ("login", True),
+        ("users/123", True),
+        ("api", False),
+        ("api/users", False),
+        ("api\\users", False),  # the same path as Windows hands it to Starlette
+        ("assets/app.js", False),
+        ("assets\\app.js", False),
+        ("v1.2/dashboard", True),  # a dot in a folder name is not a file extension
+    ],
+)
+def test_which_paths_count_as_client_side_routes(path: str, expected: bool) -> None:
+    assert is_client_side_route(path) is expected
+
+
+def test_the_fallback_never_applies_to_changing_requests(client: TestClient) -> None:
+    assert client.post("/login").status_code in (404, 405)
 
 
 def test_path_traversal_cannot_read_files_outside_the_directory(
