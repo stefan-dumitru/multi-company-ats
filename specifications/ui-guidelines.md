@@ -7,7 +7,9 @@ in that feature's Plan Mode session, informed by this file — not spec'd upfron
 
 - Component library / design system: Tailwind CSS + shadcn/ui (built on Radix primitives). React
   single-page app served from the same origin as the API (see `security.md` > Authentication).
-- Brand colors / typography: [TODO]
+- Brand colors / typography: shadcn's neutral theme (CSS variables in `src/index.css`) and the
+  system font stack, so no web-font package is needed. A brand colour can replace `--primary`
+  later without touching components.
 - Light/dark mode: Both, from the start. Colors are defined as theme tokens (CSS variables) so
   components never hard-code a color; user preference defaults to the OS setting.
 - Responsive targets (mobile, tablet, desktop — which are must-support): Candidate-facing pages
@@ -15,7 +17,15 @@ in that feature's Plan Mode session, informed by this file — not spec'd upfron
   Staff pages (pipeline, dashboards, user management) are desktop-first and must stay usable on
   tablet; mobile staff layout is best-effort.
 - Exact breakpoints and the layout change at each, not just which targets are supported: [TODO]
-- Component structure convention: [TODO]
+- Component structure convention (`frontend/src/`): `components/ui/` holds shadcn components
+  (generated once by its tool, then ours to edit); `pages/` one component per route; `layout/`
+  the shell around pages; `auth/` the session state, route guards and role-based menu; `api/`
+  the only code that calls `fetch` (pages call `api(...)`, which adds the CSRF token and turns
+  failures into one error type). Imports use the `@/` alias for `src/`. Add a component with
+  `npx shadcn@4.23.0 add <name>`, review what it writes, and make it import `cn` from
+  `@/lib/utils` (built on `clsx` and `tailwind-merge`): the tool's newer output pulls in a separate
+  `cn` package, a font package and the whole shadcn tool as app dependencies, none of which we
+  use. Every new dependency still needs approval first.
 - Browser/device support matrix — what's actually supported vs. best-effort: [TODO]
 
 ## Information Architecture
@@ -63,8 +73,10 @@ with you.
 - Empty-state convention: [TODO]
 - Client vs. server validation: The server is authoritative (see `CLAUDE.md` > Security
   Baseline). How the client mirrors the rules without drifting: [TODO]
-- Session-expiry behavior (staff sessions idle out after 30 minutes): what the user sees and
-  whether unsaved input survives: [TODO]
+- Session-expiry behavior (staff sessions idle out after 30 minutes): the next request that is
+  answered 401 sends the user to the login page with "Your session has expired. Please log in
+  again." and the page they were on is remembered. Unsaved input does not survive: revisit if it
+  proves painful.
 
 ## Localization & Formatting
 

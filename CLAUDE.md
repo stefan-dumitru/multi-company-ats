@@ -50,7 +50,7 @@ how). Verified in Phase 0 unless marked otherwise.
 |---|---|
 | Install dependencies | `pip install -r requirements-dev.txt` in `backend/`; `npm ci` in `frontend/` |
 | Start the local database | `docker compose up -d --wait` from the repo root (Postgres on `127.0.0.1:5433`); stop with `docker compose stop` |
-| Run in development | `uvicorn app.main:app --reload` in `backend/`; `npm run dev` in `frontend/` (proxies `/health` to port 8000) |
+| Run in development | `uvicorn app.main:app --reload` in `backend/`; `npm run dev` in `frontend/` (proxies `/health`, `/ready` and `/api` to port 8000) |
 | Run tests | `pytest` in `backend/` (needs the local database: one test applies the migrations to a throwaway database); `npm test` in `frontend/`. End-to-end (Playwright): not set up yet, Phase 11 |
 | Run a single test file | `pytest tests/<file>.py` in `backend/`; `npm test -- <file>` in `frontend/` |
 | Lint / format | `ruff check .` and `ruff format --check .` in `backend/` (`ruff format .` to fix); `npm run lint` and `npm run format:check` in `frontend/` (`npm run format` to fix) |
@@ -60,7 +60,7 @@ how). Verified in Phase 0 unless marked otherwise.
 
 ## Project Structure
 
-What exists after Phase 2 step 6, and (marked *planned*) what later phases add:
+What exists after Phase 2 step 7, and (marked *planned*) what later phases add:
 
 - `backend/app/` — FastAPI app. Today: `main.py` (routes `/health`, `/ready`), `config.py`
   (all environment settings, in one place), `db.py` (engine and session), `frontend.py` (serves
@@ -72,7 +72,9 @@ What exists after Phase 2 step 6, and (marked *planned*) what later phases add:
 - `backend/alembic/` — migrations (`versions/`). `backend/tests/` — pytest, including the route
   gate, role x endpoint matrix and tenant-isolation tests. Adding a route means updating `POLICY`
   in `test_route_matrix.py` and classifying it in `test_tenant_isolation.py`.
-- `frontend/src/` — React + TypeScript app. *Planned:* `frontend/e2e/` for Playwright (Phase 11).
+- `frontend/src/` — React + TypeScript app (Tailwind, shadcn/ui, react-router): `api/`, `auth/`,
+  `layout/`, `pages/`, `components/ui/`; see `specifications/ui-guidelines.md` > Component
+  structure convention. *Planned:* `frontend/e2e/` for Playwright (Phase 11).
 - `.github/workflows/` — `pr.yml` (checks on every pull request), `deploy.yml` (publish, staging,
   approved production, rollback).
 - `deploy/` — the pipeline's own tooling, standard library only: `smoke_test.py`,

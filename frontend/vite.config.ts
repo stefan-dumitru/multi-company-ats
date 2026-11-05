@@ -18,6 +18,7 @@ export default defineConfig({
     proxy: {
       '/health': backend,
       '/ready': backend,
+      '/api': backend,
     },
   },
   test: {
