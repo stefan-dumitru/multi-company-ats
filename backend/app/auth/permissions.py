@@ -6,10 +6,12 @@ second one, built from `declared_access`, checks every role against every route.
 """
 
 import enum
+from collections.abc import Iterable, Iterator
 
 from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.dependencies.models import Dependant
 from fastapi.routing import APIRoute
+from starlette.routing import BaseRoute, Mount, Route
 
 from app.auth.current_user import get_current_session, get_current_user, verify_csrf
 from app.models import Role, User, UserSession
@@ -83,11 +85,41 @@ def declared_access(route: APIRoute) -> list[Permission | _Public]:
     return _walk(route.dependant)
 
 
+class UnsupportedRouteSetup(Exception):
+    """The route table has something the audit cannot read. It must never be skipped quietly:
+    a route nobody inspected is a route nobody checked for authorization."""
+
+
+def _routes_of(entries: Iterable[BaseRoute]) -> Iterator[APIRoute]:
+    for entry in entries:
+        if isinstance(entry, APIRoute):
+            yield entry
+        elif isinstance(entry, Route | Mount):
+            continue  # FastAPI's documentation pages, and the static frontend
+        elif hasattr(entry, "original_router") and hasattr(entry, "include_context"):
+            # `app.include_router(...)` does not copy a router's routes into the app: FastAPI
+            # keeps a wrapper object pointing at the router, so the routes must be followed.
+            context = entry.include_context
+            if context.prefix or context.dependencies:
+                raise UnsupportedRouteSetup(
+                    "include_router(..., prefix=...) or (..., dependencies=...) is not supported: "
+                    "put the prefix on the APIRouter itself and declare access on each route."
+                )
+            yield from _routes_of(entry.original_router.routes)
+        else:
+            raise UnsupportedRouteSetup(f"Unrecognised route object: {type(entry).__name__}")
+
+
+def iter_api_routes(app: FastAPI) -> Iterator[APIRoute]:
+    """Every API route of the app, including those added through included routers."""
+    yield from _routes_of(app.routes)
+
+
 def undeclared_routes(app: FastAPI) -> list[str]:
     """Routes that declare no access, or ambiguously more than one. Empty means all good."""
     problems = []
-    for route in app.routes:
-        if isinstance(route, APIRoute) and len(declared_access(route)) != 1:
+    for route in iter_api_routes(app):
+        if len(declared_access(route)) != 1:
             methods = ",".join(sorted(route.methods or []))
             problems.append(f"{methods} {route.path}")
     return problems
