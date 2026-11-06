@@ -123,6 +123,7 @@ LIST_CASES = [
 NOT_COMPANY_SCOPED = {
     "GET /health": "no data",
     "GET /ready": "no data",
+    "GET /health/worker": "no data",
     "POST /api/auth/login": "public; the user is found by their own credentials",
     "GET /api/auth/me": "returns the caller's own session only",
     "POST /api/auth/logout": "ends the caller's own session only",

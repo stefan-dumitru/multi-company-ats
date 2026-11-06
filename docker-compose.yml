@@ -1,6 +1,6 @@
 # Local development services. Credentials come from .env (copy .env.example), never from this file.
-# Phase 0 needs only Postgres; MinIO (resume files) and Mailpit (emails) arrive with the phases
-# that use them.
+# Postgres, and Mailpit (a fake mail server that catches every email). MinIO (resume files) arrives
+# with the phase that uses it.
 services:
   db:
     image: postgres:17
@@ -16,6 +16,19 @@ services:
       - db-data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  mailpit:
+    # Catches every email the app sends, so nothing real is ever delivered while developing.
+    # Read them at http://127.0.0.1:8025. Both ports are bound to localhost only.
+    image: axllent/mailpit:v1.33.0
+    ports:
+      - "127.0.0.1:1025:1025"  # SMTP: where the app sends mail
+      - "127.0.0.1:8025:8025"  # web inbox
+    healthcheck:
+      test: ["CMD", "/mailpit", "readyz"]
       interval: 5s
       timeout: 3s
       retries: 10

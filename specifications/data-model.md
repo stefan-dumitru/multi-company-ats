@@ -281,6 +281,12 @@ above.
 - **Constraints / invariants:** `idempotency_key` unique, so a retried or double-enqueued action
   produces one email.
 
+### WorkerHeartbeat — Technical
+
+- **Purpose:** the worker's "I am alive" note, so the web app (a separate service) can report
+  worker health. One row (`name = 'worker'`, `beat_at`), rewritten on every pass of the worker loop
+  and never added to. Read by `GET /health/worker`.
+
 ---
 
 ## Change Auditing
