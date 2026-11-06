@@ -74,6 +74,18 @@ def test_ready_is_503_when_migrations_are_behind(client: TestClient) -> None:
     assert response.json() == {"status": "not ready"}
 
 
+def test_ready_is_ok_when_the_database_is_ahead_of_this_version(client: TestClient) -> None:
+    # An older image running after a rollback: the schema has migrations this code has never heard
+    # of, and the code is written to work with them (operations.md > Database Migrations).
+    app.dependency_overrides[get_head_revision] = lambda: "0001"
+    app.dependency_overrides[get_applied_revision] = lambda: "9999"
+
+    response = client.get("/ready")
+
+    assert response.status_code == 200
+    assert response.json() == {"status": "ready"}
+
+
 def test_ready_is_503_when_database_has_no_migrations_applied(client: TestClient) -> None:
     app.dependency_overrides[get_head_revision] = lambda: "0001"
     app.dependency_overrides[get_applied_revision] = lambda: None
