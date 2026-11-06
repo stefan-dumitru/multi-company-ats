@@ -9,6 +9,7 @@ from types import FrameType
 
 from sqlalchemy.orm import Session
 
+from app.config import get_app_base_url, get_smtp_settings
 from app.db import get_engine
 from app.logging import configure_logging
 from app.worker.handlers import HANDLERS
@@ -28,6 +29,11 @@ def run_worker() -> None:
 
     signal.signal(signal.SIGTERM, ask_to_stop)
     signal.signal(signal.SIGINT, ask_to_stop)
+
+    # Fail at startup, not on the first email: a worker with wrong mail settings should not look
+    # healthy while every email it handles fails.
+    get_smtp_settings()
+    get_app_base_url()
 
     logger.info("worker started")
     with Session(get_engine()) as db:

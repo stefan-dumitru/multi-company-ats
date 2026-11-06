@@ -44,6 +44,17 @@ jobs:
           --health-interval 5s
           --health-timeout 3s
           --health-retries 10
+      # A fake mail server that catches every email, so tests can read what the app sent.
+      mailpit:
+        image: axllent/mailpit:v1.33.0
+        ports:
+          - 1025:1025 # SMTP
+          - 8025:8025 # web/API
+        options: >-
+          --health-cmd "/mailpit readyz"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
     env:
       # 127.0.0.1, not "localhost": "localhost" can resolve to IPv6 first (see .env.example).
       DATABASE_URL: postgresql+psycopg://ats:ci-only-password@127.0.0.1:5432/ats
