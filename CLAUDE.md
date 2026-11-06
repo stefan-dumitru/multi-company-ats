@@ -68,8 +68,8 @@ What exists after Phase 2, and (marked *planned*) what later phases add:
   the built React app), `models/` (SQLAlchemy), `schemas/` (request/response models), `routers/`
   (HTTP layer only), `auth/` (passwords, sessions, rate limiting, current user, `permissions.py`:
   the role table and `require_permission`), `services/` (business rules and tenant-scoped data
-  access; `users.py` is the pattern to copy). *Planned:* `worker/` (background job loop and
-  handlers), `integrations/` (SMTP, S3, Google Calendar).
+  access; `users.py` is the pattern to copy), `worker/` (`queue.py`: the Postgres-backed job queue;
+  the worker loop and handlers follow). *Planned:* `integrations/` (SMTP, S3, Google Calendar).
 - `backend/alembic/` — migrations (`versions/`). `backend/tests/` — pytest, including the route
   gate, role x endpoint matrix and tenant-isolation tests. Adding a route means updating `POLICY`
   in `test_route_matrix.py` and classifying it in `test_tenant_isolation.py`.
