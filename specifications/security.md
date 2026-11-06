@@ -118,7 +118,15 @@ The per-project choices:
   rejection comments) to the wrong role. Third: account takeover through account-linking or
   invitation/reset token flaws.
 - Anything explicitly out of scope for launch (accepted risk, revisit later): MFA, formal GDPR
-  certification, malware scanning of resumes [TODO], advanced bot protection. Others: [TODO]
+  certification, malware scanning of resumes [TODO], advanced bot protection. Known and accepted
+  until the phase that fixes them:
+  - Company signup is open and not rate limited, so someone could create many companies (Phase 2).
+  - A failed signup still hints that an email is registered, because the reply cannot be fully
+    non-revealing until emails exist to tell the owner instead (fixed by Phase 3).
+  - Email addresses are not yet verified: accounts work without it (enforced from Phase 3).
+  - The route audit reads FastAPI internals; a FastAPI upgrade that changes them fails the test
+    loudly rather than passing silently, so check it first when upgrading.
+  Others: [TODO]
 
 ## Audit / Logging
 
