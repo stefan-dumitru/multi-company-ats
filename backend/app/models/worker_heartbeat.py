@@ -17,3 +17,6 @@ class WorkerHeartbeat(Base):
 
     name: Mapped[str] = mapped_column(String(50), primary_key=True)
     beat_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    # The hosting platform's id for the deployment this worker runs in. During a release it lets
+    # the pipeline tell the new worker's heartbeat from the old worker's last one.
+    deployment_id: Mapped[str | None] = mapped_column(String(100))

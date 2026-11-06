@@ -5,7 +5,7 @@ from pathlib import Path
 from alembic.config import Config
 from alembic.runtime.migration import MigrationContext
 from alembic.script import ScriptDirectory
-from fastapi import Depends, FastAPI
+from fastapi import Depends, FastAPI, Query
 from fastapi.responses import JSONResponse
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
@@ -74,10 +74,17 @@ def ready(
 
 
 @app.get("/health/worker", dependencies=[Depends(public_route)])
-def worker_health(db: Session = Depends(get_db)) -> JSONResponse:
-    """200 only if the background worker has checked in within the last minute."""
+def worker_health(
+    deployment: str | None = Query(default=None, max_length=100),
+    db: Session = Depends(get_db),
+) -> JSONResponse:
+    """200 only if the background worker has checked in within the last minute.
+
+    `?deployment=<id>` narrows that to one deployment's worker: the release pipeline uses it to
+    prove the *new* worker is running, not just that the old one's last heartbeat is recent.
+    """
     try:
-        alive = worker_is_alive(db, datetime.now(UTC))
+        alive = worker_is_alive(db, datetime.now(UTC), deployment)
     except SQLAlchemyError:
         logger.exception("Worker health check failed: database unreachable")
         alive = False

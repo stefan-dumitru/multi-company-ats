@@ -9,7 +9,7 @@ from types import FrameType
 
 from sqlalchemy.orm import Session
 
-from app.config import get_app_base_url, get_smtp_settings
+from app.config import get_app_base_url, get_deployment_id, get_smtp_settings
 from app.db import get_engine
 from app.logging import configure_logging
 from app.worker.handlers import HANDLERS
@@ -37,7 +37,7 @@ def run_worker() -> None:
 
     logger.info("worker started")
     with Session(get_engine()) as db:
-        run_loop(db, stop, HANDLERS)
+        run_loop(db, stop, HANDLERS, deployment_id=get_deployment_id())
     logger.info("worker stopped")
 
 

@@ -81,7 +81,7 @@ What exists after Phase 2, and (marked *planned*) what later phases add:
 - `.github/workflows/` — `pr.yml` (checks on every pull request), `deploy.yml` (publish, staging,
   approved production, rollback).
 - `deploy/` — the pipeline's own tooling, standard library only: `smoke_test.py`,
-  `railway_api.py`, `release.py` (run as `python -m deploy.release` from the repo root); tests in
+  `railway_api.py`, `release.py` (moves the web service, then the worker; run as `python -m deploy.release` from the repo root); tests in
   `deploy/tests/`, run by the backend's `pytest`, linted and type-checked with the backend.
 - `Dockerfile`, `docker-compose.yml`, `.env.example` — packaging and local services.
 - `specifications/` — the spec files; read selectively (see SPECS.md).

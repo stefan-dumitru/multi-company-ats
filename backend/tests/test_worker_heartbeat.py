@@ -35,6 +35,48 @@ def test_beating_again_replaces_the_old_beat_instead_of_adding_rows(db: Session)
     assert heartbeat.last_heartbeat(db) == NOW + timedelta(seconds=30)
 
 
+def test_a_heartbeat_can_be_checked_against_the_deployment_that_wrote_it(db: Session) -> None:
+    # Lets the release pipeline ask "is the NEW worker alive?", not just "is some worker alive?"
+    heartbeat.record_heartbeat(db, NOW, deployment_id="dep-new")
+
+    assert heartbeat.worker_is_alive(db, NOW, deployment_id="dep-new") is True
+    assert heartbeat.worker_is_alive(db, NOW, deployment_id="dep-old") is False
+
+
+def test_without_a_deployment_any_fresh_heartbeat_counts(db: Session) -> None:
+    heartbeat.record_heartbeat(db, NOW, deployment_id="dep-new")
+
+    assert heartbeat.worker_is_alive(db, NOW) is True
+
+
+def test_a_heartbeat_from_a_matching_deployment_still_has_to_be_fresh(db: Session) -> None:
+    heartbeat.record_heartbeat(db, NOW, deployment_id="dep-new")
+
+    assert (
+        heartbeat.worker_is_alive(db, NOW + timedelta(minutes=5), deployment_id="dep-new") is False
+    )
+
+
+def test_a_worker_that_does_not_know_its_deployment_never_matches_one(db: Session) -> None:
+    heartbeat.record_heartbeat(db, NOW)  # local development: no deployment id
+
+    assert heartbeat.worker_is_alive(db, NOW, deployment_id="dep-new") is False
+
+
+def test_the_health_endpoint_can_be_asked_about_one_deployment(
+    client: TestClient, db: Session
+) -> None:
+    heartbeat.record_heartbeat(db, datetime.now(UTC), deployment_id="dep-new")
+
+    assert client.get("/health/worker?deployment=dep-new").status_code == 200
+    assert client.get("/health/worker?deployment=dep-old").status_code == 503
+    assert client.get("/health/worker").status_code == 200
+
+
+def test_the_health_endpoint_refuses_an_absurdly_long_deployment_id(client: TestClient) -> None:
+    assert client.get("/health/worker?deployment=" + "x" * 500).status_code == 422
+
+
 def test_the_health_endpoint_is_503_without_a_worker(client: TestClient) -> None:
     response = client.get("/health/worker")
 
