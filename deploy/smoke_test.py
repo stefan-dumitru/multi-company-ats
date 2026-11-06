@@ -88,6 +88,35 @@ def run_smoke_test(
         time.sleep(retry_interval)
 
 
+def run_worker_check(
+    base_url: str,
+    deployment_id: str | None,
+    *,
+    deadline_seconds: float = 120.0,
+    request_timeout: float = 10.0,
+    retry_interval: float = 5.0,
+) -> None:
+    """Wait until the background worker of this deployment reports in through /health/worker.
+
+    With a deployment id the answer is 200 only if *that* deployment's worker wrote the fresh
+    heartbeat, so the previous worker's last heartbeat cannot make a broken new one look healthy.
+    """
+    path = "/health/worker"
+    if deployment_id is not None:
+        path += "?deployment=" + urllib.parse.quote(deployment_id, safe="")
+    base_url = base_url.rstrip("/")
+    deadline = time.monotonic() + deadline_seconds
+    while True:
+        failure = _check(
+            base_url, path, request_timeout, lambda body: '"status":"ok"' in body.replace(" ", "")
+        )
+        if failure is None:
+            return
+        if time.monotonic() + retry_interval >= deadline:
+            raise SmokeTestFailed(f"worker not healthy after {deadline_seconds:g}s: {failure}")
+        time.sleep(retry_interval)
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Smoke-test a deployed ATS instance.")
     parser.add_argument("url", help="base URL, e.g. https://ats-staging.up.railway.app")

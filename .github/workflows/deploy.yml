@@ -1,6 +1,7 @@
 # Runs on every merge to `main`: re-checks the exact commit, builds the image once, and publishes it
-# to GitHub's container registry, deploys that image to Railway staging, and then, after a manual
-# approval, the same image to production (restoring the previous version if production fails).
+# to GitHub's container registry, deploys that image to Railway staging (web, then the background
+# worker), and then, after a manual approval, the same image to production (restoring the previous
+# versions of both if production fails).
 #
 # Triggers ONLY on pushes to main, never on pull requests, so a pull request can never reach the
 # secrets this workflow will use to deploy.
@@ -99,7 +100,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     # Holds the staging secret and variables (RAILWAY_TOKEN, RAILWAY_ENVIRONMENT_ID,
-    # RAILWAY_SERVICE_ID, APP_URL). Only `main` may deploy to this environment.
+    # RAILWAY_SERVICE_ID, RAILWAY_WORKER_SERVICE_ID, APP_URL). Only `main` may deploy to this
+    # environment.
     environment: staging
     steps:
       - uses: actions/checkout@v7
@@ -114,6 +116,7 @@ jobs:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
           RAILWAY_ENVIRONMENT_ID: ${{ vars.RAILWAY_ENVIRONMENT_ID }}
           RAILWAY_SERVICE_ID: ${{ vars.RAILWAY_SERVICE_ID }}
+          RAILWAY_WORKER_SERVICE_ID: ${{ vars.RAILWAY_WORKER_SERVICE_ID }}
           APP_URL: ${{ vars.APP_URL }}
         run: python -m deploy.release deploy "${{ needs.publish.outputs.image }}"
 
@@ -138,6 +141,7 @@ jobs:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
           RAILWAY_ENVIRONMENT_ID: ${{ vars.RAILWAY_ENVIRONMENT_ID }}
           RAILWAY_SERVICE_ID: ${{ vars.RAILWAY_SERVICE_ID }}
+          RAILWAY_WORKER_SERVICE_ID: ${{ vars.RAILWAY_WORKER_SERVICE_ID }}
           APP_URL: ${{ vars.APP_URL }}
         run: python -m deploy.release deploy "${{ needs.publish.outputs.image }}"
       - name: Simulate a failure after the deploy (test only)
@@ -153,6 +157,8 @@ jobs:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
           RAILWAY_ENVIRONMENT_ID: ${{ vars.RAILWAY_ENVIRONMENT_ID }}
           RAILWAY_SERVICE_ID: ${{ vars.RAILWAY_SERVICE_ID }}
+          RAILWAY_WORKER_SERVICE_ID: ${{ vars.RAILWAY_WORKER_SERVICE_ID }}
           APP_URL: ${{ vars.APP_URL }}
           PREVIOUS_IMAGE: ${{ steps.deploy.outputs.previous_image }}
-        run: python -m deploy.release rollback "$PREVIOUS_IMAGE"
+          PREVIOUS_WORKER_IMAGE: ${{ steps.deploy.outputs.previous_worker_image }}
+        run: python -m deploy.release rollback "$PREVIOUS_IMAGE" --worker-image "$PREVIOUS_WORKER_IMAGE"

@@ -115,8 +115,31 @@ Applies (the app is deployed to staging and production), at a minimal level:
   `production` requires a reviewer; the job holds no secrets until it is approved. Each Railway
   token is a project token limited to one environment, kept as the `RAILWAY_TOKEN` secret of the
   matching GitHub environment. If the deploy or smoke test fails, a final step runs
-  `deploy.release rollback <recorded image>`; the job still ends red. A manual run with
-  `simulate_smoke_failure` fails a step after a good deploy, to prove that rollback.
+  `deploy.release rollback <recorded image> --worker-image <recorded worker image>`; the job still
+  ends red. A manual run with `simulate_smoke_failure` fails a step after a good deploy, to prove
+  that rollback.
+
+  Each environment runs two services from the same image: the web service and the background
+  worker (`worker`, start command `python -m app.worker`, no health check path, no pre-deploy
+  command). A release moves the web service first (migrations run in its pre-deploy command, then
+  the smoke test), and only then the worker, so the worker never runs against a schema the web
+  service has not migrated. After the worker deployment is live, the pipeline waits until
+  `GET /health/worker?deployment=<that deployment's id>` answers 200: the worker writes Railway's
+  `RAILWAY_DEPLOYMENT_ID` into its heartbeat, so the previous worker's last heartbeat cannot make a
+  crashing new worker look healthy. If anything fails, both services go back to their previous
+  images (a worker that never left its old image is not restarted). A rollback target may be an
+  image from before the worker reported its deployment, so rolling back checks only that some
+  worker is alive. Each GitHub environment holds `RAILWAY_WORKER_SERVICE_ID` next to
+  `RAILWAY_SERVICE_ID`.
+
+  Mail in staging and production: a `mailpit` service per environment (image `axllent/mailpit`,
+  pinned) catches every email. Its SMTP port is reachable only on Railway's private network
+  (`<service name>.railway.internal:1025`, no public TCP proxy); its web inbox has a public domain
+  and is protected by `MP_UI_AUTH` (user `ats`, a random password that exists only in that
+  service's variables and in a local file, never in git). It is a demo inbox, not a real mail
+  service: a real provider replaces it by changing the worker's `SMTP_*` variables. Services are
+  named `mailpit`/`worker` in staging and `mailpit-production`/`worker-production` in production
+  (Railway requires project-unique service names).
   Railway service settings (set once through its API, per environment): health check path
   `/health` (120 s) and pre-deploy command `alembic upgrade head`. If a new version fails its
   migration or health check, Railway keeps the old one serving. The image package on GHCR is

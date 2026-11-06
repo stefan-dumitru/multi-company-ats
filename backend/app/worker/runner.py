@@ -79,11 +79,12 @@ def run_loop(
     handlers: Mapping[str, Handler],
     poll_seconds: float = POLL_SECONDS,
     clock: Clock = utc_now,
+    deployment_id: str | None = None,
 ) -> None:
     """Work until `stop` is set. A job already running is finished first, never cut off."""
     while not stop.is_set():
         try:
-            heartbeat.record_heartbeat(db, clock())
+            heartbeat.record_heartbeat(db, clock(), deployment_id)
             queue.requeue_stuck(db, clock())
             did_work = run_one_job(db, handlers, clock)
         except SQLAlchemyError:

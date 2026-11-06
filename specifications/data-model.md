@@ -285,7 +285,9 @@ above.
 
 - **Purpose:** the worker's "I am alive" note, so the web app (a separate service) can report
   worker health. One row (`name = 'worker'`, `beat_at`), rewritten on every pass of the worker loop
-  and never added to. Read by `GET /health/worker`.
+  and never added to. Also holds `deployment_id` (the hosting platform's id for the deployment
+  the worker runs in; empty in local development) so the release pipeline can ask whether the *new*
+  worker is alive. Read by `GET /health/worker`.
 
 ---
 

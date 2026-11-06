@@ -11,7 +11,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 import pytest
 
-from deploy.smoke_test import SmokeTestFailed, main, run_smoke_test
+from deploy.smoke_test import SmokeTestFailed, main, run_smoke_test, run_worker_check
 
 Response = tuple[int, str]
 HEALTHY = {
@@ -157,3 +157,66 @@ def test_command_line_exits_zero_on_success_and_one_on_failure(
 @pytest.mark.parametrize("bad_url", ["", "ftp://example.com", "example.com", "http://"])
 def test_command_line_rejects_a_url_that_is_not_http(bad_url: str) -> None:
     assert main([bad_url]) == 2
+
+
+# ---- the worker check -------------------------------------------------------------------
+
+
+def test_the_worker_check_asks_about_the_given_deployment(serve: Callable[..., str]) -> None:
+    asked: list[str] = []
+
+    def answer() -> Response:
+        asked.append("yes")
+        return 200, '{"status":"ok"}'
+
+    url = serve({"/health/worker?deployment=dep-1": answer})
+
+    run_worker_check(url, "dep-1", **FAST)
+
+    assert asked == ["yes"]
+
+
+def test_the_worker_check_encodes_the_deployment_id(serve: Callable[..., str]) -> None:
+    url = serve({"/health/worker?deployment=a%20b%26c": (200, '{"status":"ok"}')})
+
+    run_worker_check(url, "a b&c", **FAST)
+
+
+def test_the_worker_check_without_a_deployment_asks_about_any_worker(
+    serve: Callable[..., str],
+) -> None:
+    url = serve({"/health/worker": (200, '{"status":"ok"}')})
+
+    run_worker_check(url, None, **FAST)
+
+
+def test_the_worker_check_fails_when_the_new_worker_never_appears(
+    serve: Callable[..., str],
+) -> None:
+    url = serve({"/health/worker?deployment=dep-1": (503, '{"status":"unavailable"}')})
+
+    with pytest.raises(SmokeTestFailed, match="worker"):
+        run_worker_check(url, "dep-1", **FAST)
+
+
+def test_the_worker_check_waits_for_a_worker_that_is_still_starting(
+    serve: Callable[..., str],
+) -> None:
+    calls = {"count": 0}
+
+    def answer() -> Response:
+        calls["count"] += 1
+        return (503, "") if calls["count"] <= 3 else (200, '{"status":"ok"}')
+
+    url = serve({"/health/worker?deployment=dep-1": answer})
+
+    run_worker_check(url, "dep-1", **FAST)
+
+    assert calls["count"] == 4
+
+
+def test_the_worker_check_fails_on_a_200_that_is_not_ok(serve: Callable[..., str]) -> None:
+    url = serve({"/health/worker?deployment=dep-1": (200, "<html>some proxy page</html>")})
+
+    with pytest.raises(SmokeTestFailed):
+        run_worker_check(url, "dep-1", **FAST)

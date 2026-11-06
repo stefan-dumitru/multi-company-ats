@@ -3,7 +3,7 @@ the program with a message naming it, not surface later as a mysterious failed j
 
 import pytest
 
-from app.config import SmtpSettings, get_app_base_url, get_smtp_settings
+from app.config import SmtpSettings, get_app_base_url, get_deployment_id, get_smtp_settings
 
 
 @pytest.fixture(autouse=True)
@@ -16,6 +16,7 @@ def clean_environment(monkeypatch: pytest.MonkeyPatch) -> None:
         "SMTP_STARTTLS",
         "EMAIL_FROM",
         "APP_BASE_URL",
+        "RAILWAY_DEPLOYMENT_ID",
     ):
         monkeypatch.delenv(name, raising=False)
 
@@ -110,6 +111,13 @@ def test_the_password_is_not_shown_when_settings_are_printed(
     monkeypatch.setenv("SMTP_PASSWORD", "very-secret-value")
 
     assert "very-secret-value" not in repr(get_smtp_settings())
+
+
+def test_the_deployment_id_comes_from_the_hosting_platform(monkeypatch: pytest.MonkeyPatch) -> None:
+    assert get_deployment_id() is None  # local development
+
+    monkeypatch.setenv("RAILWAY_DEPLOYMENT_ID", "dep-123")
+    assert get_deployment_id() == "dep-123"
 
 
 # ---- the public address used in links -----------------------------------------------------

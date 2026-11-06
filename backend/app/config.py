@@ -108,6 +108,11 @@ def get_smtp_settings() -> SmtpSettings:
     )
 
 
+def get_deployment_id() -> str | None:
+    """Which deployment this process belongs to (Railway sets it). None in local development."""
+    return os.environ.get("RAILWAY_DEPLOYMENT_ID", "").strip() or None
+
+
 def get_app_base_url() -> str:
     """The public address of the site, used to build links in emails (no trailing slash)."""
     value = os.environ.get("APP_BASE_URL", "").strip().rstrip("/")

@@ -223,6 +223,15 @@ def test_an_idle_loop_keeps_the_heartbeat_going(db: Session) -> None:
     assert heartbeat.last_heartbeat(db) == NOW
 
 
+def test_the_loop_stamps_its_heartbeat_with_the_deployment_it_runs_in(db: Session) -> None:
+    stop = threading.Event()
+    threading.Timer(0.2, stop.set).start()
+
+    runner.run_loop(db, stop, {}, poll_seconds=0.01, clock=clock, deployment_id="dep-7")
+
+    assert heartbeat.worker_is_alive(db, NOW, deployment_id="dep-7") is True
+
+
 def test_the_loop_rescues_jobs_a_dead_worker_left_running(db: Session) -> None:
     add_job(db, "a")
     queue.claim_next(db, NOW - queue.STUCK_AFTER - timedelta(minutes=1))  # taken, then abandoned
