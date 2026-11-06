@@ -24,7 +24,7 @@ COPY backend/requirements.txt ./requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt && pip uninstall -y pip
 
 COPY backend/app ./app
-# Migrations ship in the image so the deploy pipeline can run `alembic upgrade head` with it.
+# Migrations ship in the image so the deploy pipeline can run `python -m app.migrate` with it.
 COPY backend/alembic ./alembic
 COPY backend/alembic.ini ./alembic.ini
 COPY --from=frontend-build /frontend/dist ./static
