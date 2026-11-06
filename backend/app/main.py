@@ -48,6 +48,12 @@ def get_applied_revision(db: Session = Depends(get_db)) -> str | None:
         return None
 
 
+def get_known_revisions() -> set[str]:
+    """Every migration that exists in the code."""
+    scripts = ScriptDirectory.from_config(Config(str(ALEMBIC_INI)))
+    return {script.revision for script in scripts.walk_revisions()}
+
+
 # Both endpoints are deliberately unauthenticated (the deploy pipeline and the platform call them)
 # and return only a status word: no versions, hostnames or error text.
 @app.get("/health", dependencies=[Depends(public_route)])
@@ -66,10 +72,17 @@ def health(db: Session = Depends(get_db)) -> JSONResponse:
 def ready(
     head: str | None = Depends(get_head_revision),
     applied: str | None = Depends(get_applied_revision),
+    known: set[str] = Depends(get_known_revisions),
 ) -> JSONResponse:
-    """200 only if the database has every migration the code expects."""
-    if head is None or applied != head:
+    """200 only if the database has every migration the code expects.
+
+    A database *ahead* of the code (a migration this version has never heard of) is fine: that is
+    what a rollback to an older image looks like, and migrations are backward-compatible.
+    """
+    if head is None or applied is None:
         return JSONResponse({"status": "not ready"}, status_code=503)
+    if applied != head and applied in known:
+        return JSONResponse({"status": "not ready"}, status_code=503)  # known but behind
     return JSONResponse({"status": "ready"})
 
 

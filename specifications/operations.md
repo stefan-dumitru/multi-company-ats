@@ -47,7 +47,7 @@ Always, once the app runs anywhere but your own machine:
   the per-request web log line is still to do.
 - A health check endpoint, and what it actually verifies: `GET /health` returns 200 only if the
   process is up **and** the database answers a trivial query; `GET /ready` also confirms
-  migrations are at head. The deploy pipeline's smoke test calls `/health`. Neither endpoint
+  migrations are at head (or ahead of this version, as after a rollback). The deploy pipeline's smoke test calls `/health`. Neither endpoint
   requires authentication nor reveals versions or internals beyond status.
 - Worker liveness: the worker rewrites one `WorkerHeartbeat` row on every pass of its loop (about
   every 2 seconds); `GET /health/worker` returns 200 only if that row is under 60 seconds old, else
