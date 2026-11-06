@@ -185,13 +185,23 @@ Applies. Services and their failure behavior:
 
 | Service | Used for | When it is down |
 |---|---|---|
-| SMTP server (provider [TODO]) | All emails | Jobs retry with backoff; the user action that triggered the email still succeeds |
+| SMTP server (Mailpit inbox on Railway for now; a real provider replaces it by changing the `SMTP_*` variables) | All emails | Jobs retry with backoff; the user action that triggered the email still succeeds |
 | Railway storage bucket | Resume files | Upload fails immediately with a clear error; reading a resume shows an error, nothing else breaks |
 | Google OAuth | "Continue with Google" | Button shows an error; password login unaffected |
 | Google Calendar API | Interview events | Interview is still created and emailed; event creation retries via the worker, then is marked failed |
 
 - Timeout and retry policy per integration — never an unbounded wait: every outbound call sets an
-  explicit timeout. Values: [TODO]. Retries only via the background worker, not inline.
+  explicit timeout. Values: SMTP 10 seconds per network step (connect, each command); the other
+  integrations set theirs when they are built. Retries only via the background worker, not inline.
+- Email settings (environment variables, read by the worker and checked when it starts, so a bad
+  value stops it instead of failing every job): `SMTP_HOST`, `SMTP_PORT` (default 587),
+  `SMTP_STARTTLS` (default on; off only for the private-network Mailpit), `SMTP_USERNAME` and
+  `SMTP_PASSWORD` (optional; refused unless STARTTLS is on), `EMAIL_FROM`, and `APP_BASE_URL`
+  (the public address links point at; https required except for localhost).
+- Email content: plain text only, built with the standard library; a line break in the subject or
+  recipient is refused, so typed text can never add a header. Each email is a `send_email` job:
+  the payload names a template and holds ids only; the template (registered in
+  `backend/app/emails/`) loads the rest when the worker runs.
 - Whether repeated failures trip a circuit breaker: No. The retry cap (5 attempts) is the only
   limit in v1.
 - Whether integration failures surface to the user immediately or get queued and retried

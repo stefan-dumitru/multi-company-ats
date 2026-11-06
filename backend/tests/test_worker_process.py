@@ -22,7 +22,13 @@ pytestmark = pytest.mark.skipif(sys.platform == "win32", reason="Windows cannot 
 
 
 def test_sigterm_stops_the_worker_cleanly(db: Session, migrated_database_url: str) -> None:
-    environment = {**os.environ, "DATABASE_URL": migrated_database_url}
+    environment = {
+        **os.environ,
+        "DATABASE_URL": migrated_database_url,
+        "SMTP_HOST": "127.0.0.1",
+        "EMAIL_FROM": "ATS <no-reply@ats.test>",
+        "APP_BASE_URL": "https://ats.test",
+    }
     process = subprocess.Popen(
         [sys.executable, "-m", "app.worker"],
         cwd=BACKEND_DIR,
