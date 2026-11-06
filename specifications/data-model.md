@@ -267,11 +267,17 @@ above.
 - **Purpose:** The Postgres-backed queue behind emails and calendar events. Also the
   "transactional outbox": jobs are inserted in the same transaction as the change that triggers
   them, so a committed stage change always has its email queued.
-- **Key fields:** `id`, `type`, `payload` (JSON, no secrets), `status` (`pending` | `running` |
-  `succeeded` | `failed`), `attempts`, `max_attempts` (5), `run_at`, `locked_at`, `last_error`,
-  `idempotency_key`, `created_at`, `finished_at`.
-- **Lifecycle:** Claimed by the worker with `SELECT ... FOR UPDATE SKIP LOCKED`. Retry policy and
-  failure handling are in `operations.md` > Background Jobs & Queues.
+- **Key fields:** `id`, `type`, `payload` (JSON: ids only, never secrets or personal details),
+  `status` (`pending` | `running` | `succeeded` | `failed`), `attempts` (attempts *started*, so it
+  is 1 while the first attempt runs), `max_attempts` (5), `run_at`, `locked_at`, `last_error`
+  (cut to 500 characters), `idempotency_key`, `created_at`, `finished_at`.
+- **Lifecycle:** Queued by the web app in the same transaction as the change that needs it
+  (`enqueue`, which never commits). Claimed by the worker with `SELECT ... FOR UPDATE SKIP LOCKED`:
+  status becomes `running` and the claim commits at once, so the slow work runs outside any
+  database transaction. On failure the job goes back to `pending` with a later `run_at`, or to
+  `failed` after the last attempt. A job `running` for over 10 minutes is rescued (the lost
+  attempt counts). Delays and failure handling are in `operations.md` > Background Jobs & Queues.
+  Table index: `(status, run_at)` for the worker's polling query.
 - **Constraints / invariants:** `idempotency_key` unique, so a retried or double-enqueued action
   produces one email.
 

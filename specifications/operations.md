@@ -149,13 +149,15 @@ creates Google Calendar events. It reads the `BackgroundJob` table, claiming row
 `SELECT ... FOR UPDATE SKIP LOCKED`.
 
 - Retry policy and maximum attempts per job type: Exponential backoff, maximum 5 attempts for all
-  job types. Backoff intervals: [TODO]
+  job types. Backoff intervals: after a failed attempt 1, 2, 3 and 4 the job waits 1 minute,
+  5 minutes, 30 minutes and 2 hours (`JOB_BACKOFF_SECONDS` overrides this, for a local demo only).
 - Where permanently-failed jobs go: they stay in `BackgroundJob` with `status = failed` and
   `last_error`. Who looks at them and how it is surfaced (log line, admin view): [TODO]
 - Delivery guarantee: at-least-once. Every handler must be idempotent (see `idempotency_key`
   below), so a retry never sends a second email.
 - How a stuck or silently-failing job gets detected: a job stuck in `running` past a timeout is
-  re-queued (timeout [TODO]); the count of failed and old pending jobs is logged. Alerting on it:
+  re-queued (timeout 10 minutes; the lost attempt still counts, so a job that kills its worker
+  cannot loop forever); the count of failed and old pending jobs is logged. Alerting on it:
   [TODO]
 - Deployment: whether the worker is its own Railway service or runs inside the web process:
   [TODO]
