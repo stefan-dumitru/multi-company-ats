@@ -49,8 +49,8 @@ how). Verified in Phase 0 unless marked otherwise.
 | Purpose | Command |
 |---|---|
 | Install dependencies | `pip install -r requirements-dev.txt` in `backend/`; `npm ci` in `frontend/` |
-| Start the local database | `docker compose up -d --wait` from the repo root (Postgres on `127.0.0.1:5433`); stop with `docker compose stop` |
-| Run in development | `uvicorn app.main:app --reload` in `backend/`; `npm run dev` in `frontend/` (proxies `/health`, `/ready` and `/api` to port 8000) |
+| Start the local services | `docker compose up -d --wait` from the repo root (Postgres on `127.0.0.1:5433`, Mailpit inbox on `http://127.0.0.1:8025`); stop with `docker compose stop` |
+| Run in development | `uvicorn app.main:app --reload` in `backend/`; the worker: `python -m app.worker` (`python -m app.worker status` shows the queue); `npm run dev` in `frontend/` (proxies `/health`, `/ready` and `/api` to port 8000) |
 | Run tests | `pytest` in `backend/` (needs the local database: one test applies the migrations to a throwaway database); `npm test` in `frontend/`. End-to-end (Playwright): not set up yet, Phase 11 |
 | Run a single test file | `pytest tests/<file>.py` in `backend/`; `npm test -- <file>` in `frontend/` |
 | Lint / format | `ruff check .` and `ruff format --check .` in `backend/` (`ruff format .` to fix); `npm run lint` and `npm run format:check` in `frontend/` (`npm run format` to fix) |
@@ -69,7 +69,9 @@ What exists after Phase 2, and (marked *planned*) what later phases add:
   (HTTP layer only), `auth/` (passwords, sessions, rate limiting, current user, `permissions.py`:
   the role table and `require_permission`), `services/` (business rules and tenant-scoped data
   access; `users.py` is the pattern to copy), `worker/` (`queue.py`: the Postgres-backed job queue;
-  the worker loop and handlers follow). *Planned:* `integrations/` (SMTP, S3, Google Calendar).
+  `runner.py`: the loop; `handlers.py`: job type to function; `heartbeat.py`, `status.py`;
+  `python -m app.worker` runs it), `logging.py` (JSON log lines). *Planned:* `integrations/` (SMTP,
+  S3, Google Calendar).
 - `backend/alembic/` — migrations (`versions/`). `backend/tests/` — pytest, including the route
   gate, role x endpoint matrix and tenant-isolation tests. Adding a route means updating `POLICY`
   in `test_route_matrix.py` and classifying it in `test_tenant_isolation.py`.

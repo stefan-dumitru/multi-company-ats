@@ -7,6 +7,7 @@ from app.models.invitation import Invitation
 from app.models.login_attempt import LoginAttempt
 from app.models.session import UserSession
 from app.models.user import STAFF_ROLES, Role, User
+from app.models.worker_heartbeat import WorkerHeartbeat
 
 __all__ = [
     "STAFF_ROLES",
@@ -19,4 +20,5 @@ __all__ = [
     "Role",
     "User",
     "UserSession",
+    "WorkerHeartbeat",
 ]

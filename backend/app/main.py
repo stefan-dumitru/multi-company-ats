@@ -1,4 +1,5 @@
 import logging
+from datetime import UTC, datetime
 from pathlib import Path
 
 from alembic.config import Config
@@ -16,6 +17,7 @@ from app.db import get_db
 from app.error_handlers import add_error_handlers
 from app.frontend import mount_frontend
 from app.routers import auth, companies, invitations, users
+from app.worker.heartbeat import worker_is_alive
 
 logger = logging.getLogger(__name__)
 
@@ -69,6 +71,19 @@ def ready(
     if head is None or applied != head:
         return JSONResponse({"status": "not ready"}, status_code=503)
     return JSONResponse({"status": "ready"})
+
+
+@app.get("/health/worker", dependencies=[Depends(public_route)])
+def worker_health(db: Session = Depends(get_db)) -> JSONResponse:
+    """200 only if the background worker has checked in within the last minute."""
+    try:
+        alive = worker_is_alive(db, datetime.now(UTC))
+    except SQLAlchemyError:
+        logger.exception("Worker health check failed: database unreachable")
+        alive = False
+    if not alive:
+        return JSONResponse({"status": "unavailable"}, status_code=503)
+    return JSONResponse({"status": "ok"})
 
 
 # Must stay the last registration in this file: see mount_frontend.

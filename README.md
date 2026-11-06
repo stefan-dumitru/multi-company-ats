@@ -68,7 +68,7 @@ Needs Docker, Python 3.14 and Node 26.
 # 1. Settings: copy the example, then edit the password if you like (.env is git-ignored)
 cp .env.example .env
 
-# 2. Database (Postgres on 127.0.0.1:5433)
+# 2. Postgres on 127.0.0.1:5433, and Mailpit (catches emails; inbox at http://127.0.0.1:8025)
 docker compose up -d --wait
 
 # 3. Backend
@@ -94,6 +94,8 @@ Get-Content ..\.env | ForEach-Object { if ($_ -match '^\s*([A-Za-z_][A-Za-z0-9_]
 ```bash
 alembic upgrade head                # create the schema
 uvicorn app.main:app --reload       # API on http://127.0.0.1:8000  (try /health and /ready)
+python -m app.worker                # background worker, in another terminal (Ctrl+C stops it)
+python -m app.worker status         # job counts by status, failed jobs, when the worker last ran
 
 # 4. Frontend, in a second terminal
 cd frontend
