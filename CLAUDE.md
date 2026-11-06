@@ -57,12 +57,13 @@ how). Verified in Phase 0 unless marked otherwise.
 | Type check | `mypy` in `backend/` (settings in `pyproject.toml`); `npm run typecheck` in `frontend/` |
 | Build for production | `docker build -t ats .` from the repo root (builds frontend and backend into one image); `npm run build` for the frontend alone |
 | Database migration | `alembic upgrade head` in `backend/`; new migration: `alembic revision --autogenerate -m "<message>"` |
+| Secret scan, before every push | From the repo root: `docker run --rm -v "$PWD:/repo" ghcr.io/gitleaks/gitleaks:v8.30.1 git /repo --redact` (add `MSYS_NO_PATHCONV=1` in Git Bash). It is the command CI runs, over the whole history of every branch, so a secret-looking value (even an invented test token) committed anywhere fails CI and cannot be fixed by a later commit |
 
 ## Project Structure
 
-What exists after Phase 2 step 8, and (marked *planned*) what later phases add:
+What exists after Phase 2, and (marked *planned*) what later phases add:
 
-- `backend/app/` — FastAPI app. Today: `main.py` (routes `/health`, `/ready`), `config.py`
+- `backend/app/` — FastAPI app. Today: `main.py` (wires the routers; `/health`, `/ready`), `config.py`
   (all environment settings, in one place), `db.py` (engine and session), `frontend.py` (serves
   the built React app), `models/` (SQLAlchemy), `schemas/` (request/response models), `routers/`
   (HTTP layer only), `auth/` (passwords, sessions, rate limiting, current user, `permissions.py`:

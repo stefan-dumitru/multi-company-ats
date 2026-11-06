@@ -83,7 +83,11 @@ Applies (the app is deployed to staging and production), at a minimal level:
   `DATABASE_URL` (built from the environment's Postgres service with Railway references, using
   the `postgresql+psycopg://` prefix) and `PORT`. GitHub environment secret `RAILWAY_TOKEN` and
   variables `RAILWAY_ENVIRONMENT_ID`, `RAILWAY_SERVICE_ID`, `APP_URL`, set separately on `staging`
-  and `production`. Full list for later phases: [TODO]
+  and `production`. `COOKIE_SECURE` (default on, so Railway needs nothing) is the one runtime
+  setting that only `.env` changes: it is set to `false` for local development over plain http,
+  and must never be set elsewhere. The container starts uvicorn with `--proxy-headers`, so the
+  login rate limit sees real client addresses behind Railway's proxy. Full list for later
+  phases: [TODO]
 - How a release ships, and how it gets rolled back when it's wrong: GitHub Actions
   (`.github/workflows/`). Pull request: lint, type check, backend and frontend tests against a real
   Postgres, migrations applied from scratch, tenant-isolation and role-matrix tests, dependency and

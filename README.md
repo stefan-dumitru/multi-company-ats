@@ -10,15 +10,30 @@ accepts pull requests whose checks pass.
 
 ## Status
 
-Phase 0 is done: a small FastAPI backend (`/health`, `/ready`), a React page that shows whether
-the backend is healthy, one Docker image that serves both, and the pull request pipeline. Hiring
-features start in Phase 2.
+Phases 0 to 2 are done:
 
-Phase 1 adds deployment: every merge to `main` goes to staging automatically and to production
-after a manual approval, with automatic rollback.
+- **Phase 0:** a FastAPI backend, a React app, one Docker image that serves both, and the pull
+  request pipeline.
+- **Phase 1:** deployment. Every merge to `main` goes to staging automatically and to production
+  after a manual approval, with automatic rollback.
+- **Phase 2:** companies, accounts and tenancy. A company registers and becomes its own isolated
+  workspace; its admin invites staff, who log in with a role (admin, recruiter or interviewer);
+  admins change roles and deactivate people. Hiring features (jobs, applications) start in
+  Phase 4.
 
 - Staging: https://multi-company-ats-staging.up.railway.app
 - Production: https://multi-company-ats-production.up.railway.app
+
+## What stops one company seeing another's data
+
+Three automated tests run on every pull request (all in `backend/tests/`), because "company A
+can never see company B" is the promise this app must keep:
+
+| Test | Guarantees |
+|---|---|
+| Route gate | Every route declares who may call it; a route that forgets fails the build. |
+| Role x endpoint matrix | Every role is called against every route and must get exactly the answer the written policy says. |
+| Tenant isolation | Company A attacks company B's ids on every route and gets "not found", and nothing of B's changes. |
 
 ## How a change ships
 
@@ -83,7 +98,7 @@ uvicorn app.main:app --reload       # API on http://127.0.0.1:8000  (try /health
 # 4. Frontend, in a second terminal
 cd frontend
 npm ci
-npm run dev                         # http://127.0.0.1:5173, forwards /health to the backend
+npm run dev                         # http://127.0.0.1:5173, forwards /health, /ready and /api to the backend
 ```
 
 Run the checks the pipeline runs (backend commands from `backend/` with the environment loaded):
