@@ -141,7 +141,11 @@ Applies (the app is deployed to staging and production), at a minimal level:
   named `mailpit`/`worker` in staging and `mailpit-production`/`worker-production` in production
   (Railway requires project-unique service names).
   Railway service settings (set once through its API, per environment): health check path
-  `/health` (120 s) and pre-deploy command `alembic upgrade head`. If a new version fails its
+  `/health` (120 s) and pre-deploy command `python -m app.migrate`, which is `alembic upgrade
+  head` except that a database already *ahead* of the image (a migration the image has never heard
+  of, which is what a rollback across a migration looks like) is left alone and logged instead of
+  failing: plain `alembic upgrade head` fails with "Can't locate revision" there, which blocks the
+  rollback. Found by a staging rollback drill in Phase 3. If a new version fails its
   migration or health check, Railway keeps the old one serving. The image package on GHCR is
   public so Railway can pull it without credentials. Railway keeps the image of a removed
   deployment for 72 hours on the Hobby plan, but rollback pulls the previous image again from
@@ -158,7 +162,8 @@ Applies once staging/production exist (until then, rebuilding locally is fine).
 - How schema changes ship: Alembic migrations, backward-compatible (expand/contract). A release
   only adds nullable columns/tables or compatible changes; removing or renaming something takes
   two releases (stop using it, then drop it). Migrations run as Railway's pre-deploy command
-  (`alembic upgrade head`) before the new version starts serving; if it fails, the deploy fails.
+  (`python -m app.migrate`, see above) before the new version starts serving; if it fails, the
+  deploy fails.
 - Is every migration reversible, and if not, what's the recovery plan? Rollback is "redeploy the
   previous image", not "run a down-migration"; the schema stays at the newer version. Down
   migrations are not required. Recovery from a bad data migration is the database backup.
