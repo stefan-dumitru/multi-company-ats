@@ -55,7 +55,15 @@ can never see company B" is the promise this app must keep:
    anything fails, the previous images of both services are restored automatically and the run is
    marked failed. A rollback works even after a release that added a database migration.
 
+After a release, an hourly workflow (`.github/workflows/monitor.yml`) keeps watching both
+environments: it fails, and GitHub sends an email, if the background worker stops reporting in or
+a job gives up after its retries.
+
 The deploy tooling lives in [deploy/](deploy/) and is tested like the app.
+
+> Staging and production send email to a password-protected demo inbox (Mailpit), not to real
+> addresses. A real mail provider replaces it by changing the worker's `SMTP_*` variables, and is
+> needed before real users.
 
 ## What the pipeline checks
 

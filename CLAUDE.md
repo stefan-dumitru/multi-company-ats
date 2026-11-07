@@ -81,8 +81,8 @@ What exists after Phase 3, and (marked *planned*) what later phases add:
   `layout/`, `pages/`, `components/ui/`; see `specifications/ui-guidelines.md` > Component
   structure convention. *Planned:* `frontend/e2e/` for Playwright (Phase 11).
 - `.github/workflows/` — `pr.yml` (checks on every pull request), `deploy.yml` (publish, staging,
-  approved production, rollback).
-- `deploy/` — the pipeline's own tooling, standard library only: `smoke_test.py`,
+  approved production, rollback), `monitor.yml` (hourly worker and failed-job check).
+- `deploy/` — the pipeline's own tooling, standard library only: `smoke_test.py`, `monitor.py`,
   `railway_api.py`, `release.py` (moves the web service, then the worker; run as `python -m deploy.release` from the repo root); tests in
   `deploy/tests/`, run by the backend's `pytest`, linted and type-checked with the backend.
 - `Dockerfile`, `docker-compose.yml`, `.env.example` — packaging and local services.

@@ -1,0 +1,44 @@
+# Hourly health check of staging and production: is the background worker alive, and has any job
+# given up for good in the last hour? When something is wrong this workflow fails, and GitHub emails
+# the person who last edited the schedule below.
+#
+# It only reads two public, count-only endpoints (/health/worker and /health/jobs), so it needs no
+# secrets. It deliberately does not use the `staging` / `production` GitHub environments: the
+# production one waits for a manual approval, which would hold every scheduled run.
+#
+# GitHub runs scheduled workflows from the default branch only, and pauses them after 60 days
+# without repository activity (re-enable under the Actions tab if that happens).
+name: Monitor
+
+on:
+  schedule:
+    # Minute 17, not 0: many workflows are scheduled on the hour and GitHub delays those.
+    - cron: "17 * * * *"
+  # Manual run, to check right now or to prove the alert works.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: monitor
+  cancel-in-progress: false
+
+jobs:
+  monitor:
+    name: monitor
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+      - name: Check the worker and recent failed jobs
+        # 65 minutes: a little more than the hourly schedule, so a job that gives up between two
+        # runs is seen by exactly one of them (about one alert per failure, not one per hour).
+        run: >
+          python -m deploy.monitor
+          https://multi-company-ats-staging.up.railway.app
+          https://multi-company-ats-production.up.railway.app
+          --window-minutes 65
