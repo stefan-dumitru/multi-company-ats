@@ -17,6 +17,14 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_ROOT_USER_ACTION=ignore
 
+# Security fixes that Debian published after the base image was last rebuilt. A fix for a HIGH
+# vulnerability can exist (and fail the image scan) days before the base image catches up. Only the
+# named package is upgraded, so nothing else in the image changes. Once the base image has the fix
+# this does nothing and the line can be removed.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends --only-upgrade zlib1g \
+    && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
 COPY backend/requirements.txt ./requirements.txt
 # pip is removed afterwards: the app never needs it at runtime, its bundled libraries were the only
