@@ -56,23 +56,24 @@ how). Verified in Phase 0 unless marked otherwise.
 | Lint / format | `ruff check .` and `ruff format --check .` in `backend/` (`ruff format .` to fix); `npm run lint` and `npm run format:check` in `frontend/` (`npm run format` to fix) |
 | Type check | `mypy` in `backend/` (settings in `pyproject.toml`); `npm run typecheck` in `frontend/` |
 | Build for production | `docker build -t ats .` from the repo root (builds frontend and backend into one image); `npm run build` for the frontend alone |
-| Database migration | `alembic upgrade head` in `backend/`; new migration: `alembic revision --autogenerate -m "<message>"` |
+| Database migration | `alembic upgrade head` in `backend/` (Railway runs `python -m app.migrate`, which is the same except that it leaves a database that is ahead of the image alone); new migration: `alembic revision --autogenerate -m "<message>"` |
 | Secret scan, before every push | From the repo root: `docker run --rm -v "$PWD:/repo" ghcr.io/gitleaks/gitleaks:v8.30.1 git /repo --redact` (add `MSYS_NO_PATHCONV=1` in Git Bash). It is the command CI runs, over the whole history of every branch, so a secret-looking value (even an invented test token) committed anywhere fails CI and cannot be fixed by a later commit |
 
 ## Project Structure
 
-What exists after Phase 2, and (marked *planned*) what later phases add:
+What exists after Phase 3, and (marked *planned*) what later phases add:
 
 - `backend/app/` — FastAPI app. Today: `main.py` (wires the routers; `/health`, `/ready`), `config.py`
   (all environment settings, in one place), `db.py` (engine and session), `frontend.py` (serves
   the built React app), `models/` (SQLAlchemy), `schemas/` (request/response models), `routers/`
   (HTTP layer only), `auth/` (passwords, sessions, rate limiting, current user, `permissions.py`:
-  the role table and `require_permission`), `services/` (business rules and tenant-scoped data
-  access; `users.py` is the pattern to copy), `worker/` (`queue.py`: the Postgres-backed job queue;
-  `runner.py`: the loop; `handlers.py`: job type to function; `heartbeat.py`, `status.py`,
-  `maintenance.py`: the hourly purge;
-  `python -m app.worker` runs it), `logging.py` (JSON log lines). *Planned:* `integrations/` (SMTP,
-  S3, Google Calendar).
+  the role table and `require_permission`; `tokens.py`: signed email links), `services/` (business
+  rules and tenant-scoped data access; `users.py` is the pattern to copy), `emails/` (one template
+  per email, registered by name), `integrations/` (`smtp.py`), `worker/` (`queue.py`: the
+  Postgres-backed job queue; `runner.py`: the loop; `handlers.py`: job type to function;
+  `heartbeat.py`, `status.py`, `maintenance.py`: the hourly purge; `python -m app.worker` runs it),
+  `migrate.py` (the pre-deploy migration step), `logging.py` (JSON log lines). *Planned:*
+  `integrations/` for S3 and Google Calendar.
 - `backend/alembic/` — migrations (`versions/`). `backend/tests/` — pytest, including the route
   gate, role x endpoint matrix and tenant-isolation tests. Adding a route means updating `POLICY`
   in `test_route_matrix.py` and classifying it in `test_tenant_isolation.py`.
