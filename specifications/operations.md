@@ -52,6 +52,10 @@ Always, once the app runs anywhere but your own machine:
 - Worker liveness: the worker rewrites one `WorkerHeartbeat` row on every pass of its loop (about
   every 2 seconds); `GET /health/worker` returns 200 only if that row is under 60 seconds old, else
   503. Same rules as the other health endpoints: public, status word only.
+- Failed-job check: `GET /health/jobs?since_minutes=N` returns 200 if no job gave up for good
+  (`status = failed`) in the last N minutes (1 to 1440), else 503 with a count and nothing else: no
+  ids, types, errors or addresses, because the route is public. A window is needed because failed
+  jobs stay in the table.
 
 > **The rest of this section: skip unless** the app is deployed and you'd want to be told it
 > broke rather than find out from a user.
@@ -61,7 +65,12 @@ Applies (the app is deployed to staging and production), at a minimal level:
 - Metrics worth tracking: [TODO]
 - Error tracking / alerting: Railway deploy alerts and log inspection only. A hosted error
   tracker (e.g. Sentry) is a possible later addition and would need approval as a new dependency.
-  Alert conditions: [TODO]
+  Alert conditions: the hourly `monitor` workflow (`.github/workflows/monitor.yml`, tooling in
+  `deploy/monitor.py`) checks staging and production and fails when the worker has no fresh
+  heartbeat or when a job gave up in the last 65 minutes (a little over the schedule, so a failure
+  alerts about once). It retries for up to a minute first, so one network hiccup does not alert.
+  GitHub emails the person who last edited the schedule when it fails. Limits: GitHub can start a
+  run late, and pauses scheduled workflows after 60 days without repository activity.
 - Which fields must be redacted or masked in operational logs: that secrets and PII never get
   logged is a given (see `CLAUDE.md` > Security Baseline). Additionally: never log request bodies,
   `Authorization`/cookie headers, resume filenames, or `BackgroundJob.payload` contents beyond ids.
@@ -196,8 +205,8 @@ creates Google Calendar events. It reads the `BackgroundJob` table, claiming row
   below), so a retry never sends a second email.
 - How a stuck or silently-failing job gets detected: a job stuck in `running` past a timeout is
   re-queued (timeout 10 minutes; the lost attempt still counts, so a job that kills its worker
-  cannot loop forever); the count of failed and old pending jobs is logged. Alerting on it:
-  [TODO]
+  cannot loop forever); the count of failed and old pending jobs is logged. Alerting on it: the
+  hourly `monitor` workflow (see Observability).
 - Deployment: the worker is its own Railway service in each environment, built from the same
   image as the web service with the start command `python -m app.worker`. Railway stops it with
   SIGTERM on every deploy; it finishes the job in hand and exits with code 0. If the database
