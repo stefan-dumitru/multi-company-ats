@@ -199,6 +199,11 @@ creates Google Calendar events. It reads the `BackgroundJob` table, claiming row
   image as the web service with the start command `python -m app.worker`. Railway stops it with
   SIGTERM on every deploy; it finishes the job in hand and exits with code 0. If the database
   drops, it logs the error and keeps polling. Wiring the service into the pipeline: Phase 3 Step 4.
+- Scheduled work: the worker has no clock, only a queue. When a new hour starts, the worker loop
+  queues one `maintenance` job whose idempotency key is the hour (`maintenance:2026-11-07T20`),
+  so any number of workers, or restarts, queue exactly one per hour between them. The job purges
+  old technical rows (windows in `data-model.md` > Data Retention) and logs only how many rows
+  went from each table. A failed run retries like any job.
 - Handlers: plain functions `handler(db, job)` registered in `worker/handlers.py`. They never
   commit (the runner commits their changes together with marking the job done) and raise to fail;
   their database changes are rolled back first. A job whose type has no handler is retried, not

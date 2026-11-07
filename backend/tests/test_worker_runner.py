@@ -181,7 +181,9 @@ def test_giving_up_on_a_job_is_logged_as_an_error(
 def run_loop_until_stopped(
     db: Session, stop: threading.Event, handlers: Mapping[str, Handler]
 ) -> None:
-    runner.run_loop(db, stop, handlers, poll_seconds=0.01, clock=clock)
+    runner.run_loop(
+        db, stop, handlers, poll_seconds=0.01, clock=clock, schedule_hourly_maintenance=False
+    )
 
 
 def test_the_loop_drains_the_queue_then_stops_when_asked(db: Session) -> None:
@@ -227,7 +229,15 @@ def test_the_loop_stamps_its_heartbeat_with_the_deployment_it_runs_in(db: Sessio
     stop = threading.Event()
     threading.Timer(0.2, stop.set).start()
 
-    runner.run_loop(db, stop, {}, poll_seconds=0.01, clock=clock, deployment_id="dep-7")
+    runner.run_loop(
+        db,
+        stop,
+        {},
+        poll_seconds=0.01,
+        clock=clock,
+        deployment_id="dep-7",
+        schedule_hourly_maintenance=False,
+    )
 
     assert heartbeat.worker_is_alive(db, NOW, deployment_id="dep-7") is True
 
