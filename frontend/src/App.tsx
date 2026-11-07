@@ -2,10 +2,12 @@ import { Route, Routes } from 'react-router'
 import { RequireAuth, RequireRole } from '@/auth/guards'
 import Layout from '@/layout/Layout'
 import AcceptInvitationPage from '@/pages/AcceptInvitationPage'
+import ForgotPasswordPage from '@/pages/ForgotPasswordPage'
 import HomePage from '@/pages/HomePage'
 import LoginPage from '@/pages/LoginPage'
 import NotFoundPage from '@/pages/NotFoundPage'
 import RegisterCompanyPage from '@/pages/RegisterCompanyPage'
+import ResetPasswordPage from '@/pages/ResetPasswordPage'
 import UsersPage from '@/pages/UsersPage'
 import VerifyEmailPage from '@/pages/VerifyEmailPage'
 
@@ -18,6 +20,8 @@ export default function App() {
         <Route path="register" element={<RegisterCompanyPage />} />
         <Route path="accept-invitation" element={<AcceptInvitationPage />} />
         <Route path="verify-email" element={<VerifyEmailPage />} />
+        <Route path="forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="reset-password" element={<ResetPasswordPage />} />
         <Route element={<RequireAuth />}>
           <Route element={<RequireRole roles={['company_admin']} />}>
             <Route path="users" element={<UsersPage />} />

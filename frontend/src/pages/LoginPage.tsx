@@ -83,6 +83,11 @@ export default function LoginPage() {
           {submitting ? 'Logging in…' : 'Log in'}
         </Button>
       </form>
+      <p className="text-sm">
+        <Link to="/forgot-password" className="text-primary underline underline-offset-4">
+          Forgot your password?
+        </Link>
+      </p>
       <p className="text-sm text-muted-foreground">
         New here?{' '}
         <Link to="/register" className="text-primary underline underline-offset-4">
