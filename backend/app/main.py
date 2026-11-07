@@ -1,7 +1,7 @@
 import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from alembic.config import Config
@@ -20,6 +20,7 @@ from app.error_handlers import add_error_handlers
 from app.frontend import mount_frontend
 from app.routers import auth, companies, invitations, users
 from app.worker.heartbeat import worker_is_alive
+from app.worker.status import recent_failure_count
 
 logger = logging.getLogger(__name__)
 
@@ -115,6 +116,26 @@ def worker_health(
     if not alive:
         return JSONResponse({"status": "unavailable"}, status_code=503)
     return JSONResponse({"status": "ok"})
+
+
+@app.get("/health/jobs", dependencies=[Depends(public_route)])
+def jobs_health(
+    since_minutes: int = Query(ge=1, le=1440),
+    db: Session = Depends(get_db),
+) -> JSONResponse:
+    """200 if no background job gave up for good in the last `since_minutes`, otherwise 503.
+
+    The scheduled monitor calls this. It answers with a count only: it is a public route, so it
+    must not reveal job ids, types, errors or addresses.
+    """
+    try:
+        failed = recent_failure_count(db, datetime.now(UTC), timedelta(minutes=since_minutes))
+    except SQLAlchemyError:
+        logger.exception("Job health check failed: database unreachable")
+        return JSONResponse({"status": "unavailable"}, status_code=503)
+    if failed:
+        return JSONResponse({"status": "failing", "failed": failed}, status_code=503)
+    return JSONResponse({"status": "ok", "failed": 0})
 
 
 # Must stay the last registration in this file: see mount_frontend.
