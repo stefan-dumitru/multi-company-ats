@@ -98,7 +98,7 @@ export default function VerifyEmailPage() {
   return (
     <AuthCard title="Verify your email">
       <p role="status" className="text-sm">
-        Verifying…
+        Verifyingâ€¦
       </p>
     </AuthCard>
   )
