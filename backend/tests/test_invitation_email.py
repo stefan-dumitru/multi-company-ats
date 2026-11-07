@@ -9,6 +9,7 @@ import json
 import re
 from collections.abc import Iterator
 from datetime import UTC, datetime, timedelta
+from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
@@ -39,13 +40,20 @@ def mail_environment(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
 
 
 @pytest.fixture
-def admin_csrf(client: TestClient) -> str:
-    return sign_up_company(client, "Acme", "admin@acme.test")
+def admin_csrf(client: TestClient, db: Session) -> str:
+    return sign_up_company(client, db, "Acme", "admin@acme.test")
 
 
 def jobs(db: Session) -> list[BackgroundJob]:
+    """The invitation emails queued so far (signup and acceptance also queue verification mail)."""
     db.expire_all()
-    return list(db.scalars(select(BackgroundJob).order_by(BackgroundJob.created_at)))
+    everything = db.scalars(select(BackgroundJob).order_by(BackgroundJob.created_at))
+    return [job for job in everything if job.payload["template"] == "invitation"]
+
+
+def invitation_messages() -> list[dict[str, Any]]:
+    """The invitation emails in the inbox, ignoring verification emails."""
+    return [m for m in mailpit.messages() if "accept-invitation" in m["Text"]]
 
 
 def send_queued_emails(db: Session, at: datetime | None = None) -> None:
@@ -101,7 +109,7 @@ def test_the_delivered_link_is_the_one_the_admin_was_shown_and_it_works(
 
     send_queued_emails(db)
 
-    (message,) = mailpit.messages()
+    (message,) = invitation_messages()
     assert [to["Address"] for to in message["To"]] == ["rae@acme.test"]
     assert "Acme" in message["Subject"]
     match = LINK.search(message["Text"])
@@ -117,7 +125,7 @@ def test_the_email_says_who_invited_to_which_company_and_role_and_until_when(
 
     send_queued_emails(db)
 
-    (message,) = mailpit.messages()
+    (message,) = invitation_messages()
     assert "Admin of Acme" in message["Text"]
     assert "Acme" in message["Text"]
     assert "interviewer" in message["Text"].lower()
@@ -133,7 +141,7 @@ def test_an_invitation_replaced_before_sending_only_emails_the_newest_link(
 
     send_queued_emails(db)
 
-    (message,) = mailpit.messages()  # the revoked one's email was skipped, not sent
+    (message,) = invitation_messages()  # the revoked one's email was skipped, not sent
     match = LINK.search(message["Text"])
     assert match is not None and match.group(1) == newest["token"]
     assert all(job.status == JobStatus.SUCCEEDED for job in jobs(db))
@@ -147,7 +155,7 @@ def test_an_invitation_accepted_before_the_email_goes_out_sends_nothing(
 
     send_queued_emails(db)
 
-    assert mailpit.messages() == []
+    assert invitation_messages() == []
 
 
 def test_an_invitation_that_expired_before_the_email_goes_out_sends_nothing(
@@ -160,7 +168,7 @@ def test_an_invitation_that_expired_before_the_email_goes_out_sends_nothing(
 
     send_queued_emails(db)
 
-    assert mailpit.messages() == []
+    assert invitation_messages() == []
 
 
 def test_a_mail_outage_does_not_undo_the_invitation(
@@ -187,7 +195,7 @@ def test_typed_names_cannot_add_headers_or_markup_to_the_email(db: Session) -> N
 
     send_queued_emails(db)
 
-    (message,) = mailpit.messages()
+    (message,) = invitation_messages()
     assert "\n" not in message["Subject"]
     assert message["Bcc"] == []  # the injected "Bcc:" never became a header
     assert [to["Address"] for to in message["To"]] == ["rae@evil.test"]

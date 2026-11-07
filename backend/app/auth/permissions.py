@@ -15,6 +15,7 @@ from starlette.routing import BaseRoute, Mount, Route
 
 from app.auth.current_user import get_current_session, get_current_user, verify_csrf
 from app.models import Role, User, UserSession
+from app.services.errors import EmailNotVerified
 
 
 class Permission(enum.StrEnum):
@@ -50,6 +51,9 @@ class PermissionCheck:
         # allowed".
         if self.permission not in ROLE_PERMISSIONS.get(user.role, frozenset()):
             raise HTTPException(status_code=403, detail="You do not have access to this.")
+        # Checked after the role, so a route the role could never use does not hint "verify".
+        if user.email_verified_at is None and self.permission != Permission.ACCOUNT_SELF:
+            raise EmailNotVerified
         verify_csrf(request, session)
         return user
 

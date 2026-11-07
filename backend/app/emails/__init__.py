@@ -8,7 +8,11 @@ code puts in the payload.
 
 from app.emails.base import Email, Template
 from app.emails.invitation import render_invitation
+from app.emails.verify_email import render_verify_email
 
-TEMPLATES: dict[str, Template] = {"invitation": render_invitation}
+TEMPLATES: dict[str, Template] = {
+    "invitation": render_invitation,
+    "verify_email": render_verify_email,
+}
 
 __all__ = ["TEMPLATES", "Email", "Template"]

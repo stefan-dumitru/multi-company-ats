@@ -55,7 +55,9 @@ def test_a_candidate_must_not_belong_to_a_company(db: Session) -> None:
 def test_a_new_user_is_active_and_unverified_by_default(db: Session) -> None:
     company = make_company(db)
 
-    user = make_user(db, email="new@example.com", role=Role.COMPANY_ADMIN, company=company)
+    user = make_user(
+        db, email="new@example.com", role=Role.COMPANY_ADMIN, company=company, verified=False
+    )
     db.refresh(user)
 
     assert user.is_active is True

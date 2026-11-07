@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 from app.main import app
 from app.models import AuditLog, Role, User
 from app.services import users as users_service
-from tests.factories import DEFAULT_PASSWORD
+from tests.factories import DEFAULT_PASSWORD, verify_email_of
 
 NOT_FOUND = {"detail": "Not found."}
 LAST_ADMIN = {"detail": "A company must keep at least one active admin."}
@@ -61,7 +61,10 @@ def browsers(client: TestClient) -> Iterator[list[TestClient]]:
 class Company:
     """Builds a company through the real API: signup, then invite + accept for each teammate."""
 
-    def __init__(self, http: TestClient, browsers: list[TestClient], name: str) -> None:
+    def __init__(
+        self, http: TestClient, db: Session, browsers: list[TestClient], name: str
+    ) -> None:
+        self.db = db
         self.browsers = browsers
         self.name = name
         self.slug = name.lower()
@@ -75,6 +78,7 @@ class Company:
             },
         )
         assert response.status_code == 201, response.text
+        verify_email_of(db, f"admin@{self.slug}.test")
         body = response.json()
         self.admin = Account(http, body["csrf_token"], body["user"]["id"], body["user"]["email"])
 
@@ -92,6 +96,7 @@ class Company:
             },
         )
         assert accepted.status_code == 201, accepted.text
+        verify_email_of(self.db, email)
         body = accepted.json()
         return Account(http, body["csrf_token"], body["user"]["id"], email)
 
@@ -104,13 +109,13 @@ def new_browser(browsers: list[TestClient]) -> TestClient:
 
 
 @pytest.fixture
-def acme(client: TestClient, browsers: list[TestClient]) -> Company:
-    return Company(client, browsers, "Acme")
+def acme(client: TestClient, db: Session, browsers: list[TestClient]) -> Company:
+    return Company(client, db, browsers, "Acme")
 
 
 @pytest.fixture
-def globex(browsers: list[TestClient]) -> Company:
-    return Company(new_browser(browsers), browsers, "Globex")
+def globex(db: Session, browsers: list[TestClient]) -> Company:
+    return Company(new_browser(browsers), db, browsers, "Globex")
 
 
 def audit_rows(db: Session, action: str) -> list[AuditLog]:

@@ -1,8 +1,11 @@
+from datetime import datetime
+
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.auth.passwords import check_password_rules, hash_password
 from app.models import Company, Role, User
+from app.services.email_verification import issue_verification_email
 from app.services.errors import EmailAlreadyRegistered
 from app.services.users import email_is_taken, normalize_email
 
@@ -20,7 +23,13 @@ def is_email_collision(error: IntegrityError) -> bool:
 
 
 def register_company(
-    db: Session, *, company_name: str, full_name: str, email: str, password: str
+    db: Session,
+    *,
+    company_name: str,
+    full_name: str,
+    email: str,
+    password: str,
+    now: datetime,
 ) -> User:
     """Create a company and its first admin. The caller commits, so it is all or nothing.
 
@@ -50,4 +59,5 @@ def register_company(
         if is_email_collision(error):
             raise EmailAlreadyRegistered from error
         raise
+    issue_verification_email(db, admin, now)  # same transaction: no account, no email
     return admin

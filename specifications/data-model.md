@@ -247,9 +247,12 @@ above.
   re-send replaces the link). Single-use. The link is `<id>.<signature>` (signed with `SECRET_KEY`, never stored);
   `token_hash` is kept for the schema's sake and is not what is checked. At most one live
   invitation per company and email.
-- **UserToken:** `id`, `user_id`, `type` (`email_verification` | `password_reset`), `token_hash`,
-  `expires_at` (24 hours / 1 hour), `used_at`. Single-use; the link is signed with `SECRET_KEY`
-  like an invitation's (so `token_hash` is not needed for new rows).
+- **UserToken:** `id`, `user_id`, `type` (`email_verification` | `password_reset`), `created_at`,
+  `expires_at` (24 hours / 1 hour), `used_at`. There is no stored token: the link is
+  `<id>.<signature>`, signed with `SECRET_KEY` like an invitation's, so the row holds only the
+  state the signature cannot carry. Single-use: "unused and unexpired" is decided by one atomic
+  UPDATE. Issuing a new link voids the user's older unused ones. Index on
+  (`user_id`, `type`, `created_at`) for the hourly resend limit.
 - **OAuthIdentity:** `id`, `user_id`, `provider` (`google`), `provider_subject`, `linked_at`.
   Unique (`provider`, `provider_subject`).
 - **GoogleCalendarConnection:** `user_id`, `refresh_token_encrypted`, `scopes`, `connected_at`.

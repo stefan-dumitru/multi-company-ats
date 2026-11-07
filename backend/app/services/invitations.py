@@ -12,6 +12,7 @@ from app.auth.passwords import check_password_rules, hash_password
 from app.auth.sessions import hash_token
 from app.models import Company, Invitation, Role, User
 from app.services.companies import is_email_collision
+from app.services.email_verification import issue_verification_email
 from app.services.errors import EmailAlreadyRegistered, InvalidInvitation
 from app.services.users import email_is_taken, normalize_email
 from app.worker.queue import enqueue
@@ -142,4 +143,7 @@ def accept_invitation(
         if is_email_collision(error):
             raise InvalidInvitation from error
         raise
+    # Accepting a link an admin passed on proves nothing about the inbox, so invited staff verify
+    # their address like everyone else.
+    issue_verification_email(db, user, now)
     return user
