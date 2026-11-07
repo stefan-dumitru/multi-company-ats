@@ -69,7 +69,8 @@ What exists after Phase 2, and (marked *planned*) what later phases add:
   (HTTP layer only), `auth/` (passwords, sessions, rate limiting, current user, `permissions.py`:
   the role table and `require_permission`), `services/` (business rules and tenant-scoped data
   access; `users.py` is the pattern to copy), `worker/` (`queue.py`: the Postgres-backed job queue;
-  `runner.py`: the loop; `handlers.py`: job type to function; `heartbeat.py`, `status.py`;
+  `runner.py`: the loop; `handlers.py`: job type to function; `heartbeat.py`, `status.py`,
+  `maintenance.py`: the hourly purge;
   `python -m app.worker` runs it), `logging.py` (JSON log lines). *Planned:* `integrations/` (SMTP,
   S3, Google Calendar).
 - `backend/alembic/` — migrations (`versions/`). `backend/tests/` — pytest, including the route

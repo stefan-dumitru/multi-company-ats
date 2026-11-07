@@ -14,7 +14,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.models import BackgroundJob, JobStatus
-from app.worker import heartbeat, queue
+from app.worker import heartbeat, maintenance, queue
 
 logger = logging.getLogger("ats.worker")
 
@@ -80,11 +80,18 @@ def run_loop(
     poll_seconds: float = POLL_SECONDS,
     clock: Clock = utc_now,
     deployment_id: str | None = None,
+    schedule_hourly_maintenance: bool = True,
 ) -> None:
     """Work until `stop` is set. A job already running is finished first, never cut off."""
+    scheduled_hour: str | None = None
     while not stop.is_set():
         try:
             heartbeat.record_heartbeat(db, clock(), deployment_id)
+            hour = maintenance.hour_bucket(clock())
+            if schedule_hourly_maintenance and hour != scheduled_hour:
+                # Queued once per hour; if another worker did it first, this is a no-op.
+                maintenance.schedule_maintenance(db, clock())
+                scheduled_hour = hour
             queue.requeue_stuck(db, clock())
             did_work = run_one_job(db, handlers, clock)
         except SQLAlchemyError:

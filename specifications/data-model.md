@@ -342,5 +342,9 @@ erDiagram
 
 - Candidate anonymization on request (see `User`). Retention period for rejected applications
   and for audit data, and any automatic purge: [TODO]
-- Session and token rows are purged after expiry; schedule and window: [TODO]
-- Succeeded `BackgroundJob` rows older than a retention window are purged: [TODO]
+- Technical rows are purged by an hourly `maintenance` job (see `operations.md` > Background
+  Jobs & Queues). Windows: `LoginAttempt` after 24 hours (the lockout looks back 15 minutes);
+  `Session` 7 days after it expired or was revoked, or after 30 days without activity (the longest
+  idle timeout is a week); `UserToken` 7 days after it was used or expired; `BackgroundJob`
+  succeeded after 30 days, failed after 90 (kept longer to diagnose). Never purged: `AuditLog`
+  (append-only), `Invitation` (shown in the admin's list), jobs still pending or running.

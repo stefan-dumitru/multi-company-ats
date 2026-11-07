@@ -8,6 +8,7 @@ from app.config import get_smtp_settings
 from app.emails import TEMPLATES
 from app.integrations.smtp import send_email
 from app.models import BackgroundJob
+from app.worker.maintenance import maintenance_job
 from app.worker.runner import Handler
 
 logger = logging.getLogger("ats.worker")
@@ -30,4 +31,7 @@ def send_email_job(db: Session, job: BackgroundJob) -> None:
     send_email(get_smtp_settings(), email.to, email.subject, email.body)
 
 
-HANDLERS: dict[str, Handler] = {"send_email": send_email_job}
+HANDLERS: dict[str, Handler] = {
+    "send_email": send_email_job,
+    "maintenance": maintenance_job,
+}
