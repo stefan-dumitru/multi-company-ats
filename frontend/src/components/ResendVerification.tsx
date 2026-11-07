@@ -26,7 +26,7 @@ export default function ResendVerification({ email }: { email: string }) {
   return (
     <div className="space-y-2">
       <Button type="button" onClick={() => void resend()} disabled={sending}>
-        {sending ? 'Sending…' : 'Send me a new link'}
+        {sending ? 'Sendingâ€¦' : 'Send me a new link'}
       </Button>
       {sentTo && (
         <p role="status" className="text-sm text-muted-foreground">
