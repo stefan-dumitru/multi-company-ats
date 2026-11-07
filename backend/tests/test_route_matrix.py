@@ -47,6 +47,8 @@ POLICY: dict[str, frozenset[Role] | None] = {
     "POST /api/auth/logout": EVERY_LOGGED_IN_ROLE,
     "POST /api/auth/verify-email": None,
     "POST /api/auth/resend-verification": EVERY_LOGGED_IN_ROLE,
+    "POST /api/auth/forgot-password": None,
+    "POST /api/auth/reset-password": None,
     "POST /api/companies": None,
     "POST /api/invitations": ADMIN_ONLY,
     "GET /api/invitations": ADMIN_ONLY,

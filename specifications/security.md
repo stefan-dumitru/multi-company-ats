@@ -42,6 +42,15 @@ This section covers how it's implemented and how it fails.
   the email as verified and the existing account's email is verified too; otherwise refuse and
   ask the user to log in with the password first. A deactivated or anonymized user cannot sign in
   by any method. Whether staff may use Google at all: [TODO]
+- Password reset: `POST /api/auth/forgot-password` answers `202` with the same words for every
+  address (known, unknown, deactivated) and sends a link only to an active account, at most 3
+  links per hour per account (silently, so the limit cannot be used to probe). `POST
+  /api/auth/reset-password` takes the signed link and the new password: the password rules are
+  checked first (a weak password does not use up the link); the link is then used by one atomic
+  UPDATE; then, in one transaction, the new argon2 hash is stored, every session is revoked, other
+  reset links are voided, the login lockout is cleared, an unverified address becomes verified
+  (the link proved the inbox), an audit row is written (no secrets) and a "your password was
+  changed" email is queued. The link never logs anyone in.
 - Unverified accounts: a user whose email is not verified can log in and use only their own
   account (`ACCOUNT_SELF`: who am I, log out, resend the link). Every other permissioned route
   answers `403` with `code: email_not_verified`; the check runs inside `require_permission`, after
@@ -135,8 +144,13 @@ The per-project choices:
   certification, malware scanning of resumes [TODO], advanced bot protection. Known and accepted
   until the phase that fixes them:
   - Company signup is open and not rate limited, so someone could create many companies (Phase 2).
-  - A failed signup still hints that an email is registered, because the reply cannot be fully
-    non-revealing until emails exist to tell the owner instead (fixed by Phase 3).
+  - A failed signup still hints that an email is registered. Making it fully non-revealing would
+    mean emailing the existing owner instead, which v1 does not do (login and password reset do
+    not reveal it).
+  - "Forgot password" answers identically for every address, but the request does slightly more
+    database work for an existing account (it creates a link and queues an email). The email itself
+    is sent by the worker, not in the request, so no mail-server delay shows; the remaining
+    difference is a couple of inserts, too small to measure reliably over a network.
   - The route audit reads FastAPI internals; a FastAPI upgrade that changes them fails the test
     loudly rather than passing silently, so check it first when upgrading.
   Others: [TODO]

@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.auth.cookies import set_session_cookie
 from app.auth.current_user import get_current_session
-from app.auth.passwords import hash_password, verify_password
+from app.auth.passwords import PasswordTooWeak, hash_password, verify_password
 from app.auth.permissions import Permission, public_route, require_permission
 from app.auth.rate_limit import clear_failures, is_locked_out, record_failure
 from app.auth.sessions import (
@@ -17,8 +17,15 @@ from app.auth.sessions import (
 )
 from app.db import get_db
 from app.models import User, UserSession
-from app.schemas.auth import LoginRequest, SessionInfo, UserOut, VerifyEmailRequest
-from app.services import email_verification
+from app.schemas.auth import (
+    ForgotPasswordRequest,
+    LoginRequest,
+    ResetPasswordRequest,
+    SessionInfo,
+    UserOut,
+    VerifyEmailRequest,
+)
+from app.services import email_verification, password_reset
 from app.services.errors import ResendLimitReached
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
@@ -116,4 +123,38 @@ def resend_verification(
             status_code=429,
             detail="Too many verification emails requested. Please try again in an hour.",
         ) from error
+    db.commit()
+
+
+# The same words whether or not the address has an account: a different answer would let anyone
+# find out who is registered.
+FORGOT_PASSWORD_ANSWER = (
+    "If an account exists for that address, we have sent a link to reset the password."
+)
+INVALID_RESET_LINK = "This password reset link is invalid or has expired."
+
+
+@router.post("/forgot-password", status_code=202, dependencies=[Depends(public_route)])
+def forgot_password(
+    payload: ForgotPasswordRequest, db: Session = Depends(get_db)
+) -> dict[str, str]:
+    password_reset.request_password_reset(db, payload.email, datetime.now(UTC))
+    db.commit()
+    return {"detail": FORGOT_PASSWORD_ANSWER}
+
+
+@router.post("/reset-password", status_code=204, dependencies=[Depends(public_route)])
+def reset_password(payload: ResetPasswordRequest, db: Session = Depends(get_db)) -> None:
+    """Public on purpose: the person has forgotten their password, so they cannot be logged in.
+    The signed, single-use link is the proof."""
+    try:
+        worked = password_reset.reset_password(
+            db, payload.token, payload.password, datetime.now(UTC)
+        )
+    except PasswordTooWeak as error:
+        db.rollback()
+        raise HTTPException(status_code=422, detail=str(error)) from error
+    if not worked:
+        db.rollback()  # also undoes "using up" the link when the account turned out inactive
+        raise HTTPException(status_code=400, detail=INVALID_RESET_LINK)
     db.commit()
