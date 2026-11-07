@@ -10,7 +10,7 @@ accepts pull requests whose checks pass.
 
 ## Status
 
-Phases 0 to 2 are done:
+Phases 0 to 3 are done:
 
 - **Phase 0:** a FastAPI backend, a React app, one Docker image that serves both, and the pull
   request pipeline.
@@ -18,8 +18,13 @@ Phases 0 to 2 are done:
   after a manual approval, with automatic rollback.
 - **Phase 2:** companies, accounts and tenancy. A company registers and becomes its own isolated
   workspace; its admin invites staff, who log in with a role (admin, recruiter or interviewer);
-  admins change roles and deactivate people. Hiring features (jobs, applications) start in
-  Phase 4.
+  admins change roles and deactivate people.
+- **Phase 3:** background work and email. A Postgres-backed job queue and a worker process
+  (retry with backoff, no duplicate emails, two workers never take the same job) send invitation,
+  email-verification and password-reset emails. Links in emails are signed and single-use; a user
+  who has not verified their email can log in and nothing else. The worker is deployed and rolled
+  back together with the web service, and an hourly job purges old technical rows. Hiring
+  features (jobs, applications) start in Phase 4.
 
 - Staging: https://multi-company-ats-staging.up.railway.app
 - Production: https://multi-company-ats-production.up.railway.app
@@ -42,10 +47,13 @@ can never see company B" is the promise this app must keep:
 1. `checks`: the pull request checks again, on the exact commit that will ship.
 2. `publish`: builds the Docker image once and pushes it to GitHub's container registry, tagged
    with the commit.
-3. `deploy-staging`: points the Railway staging service at that image, waits until Railway says it
-   is live (database migrations run first), then smoke-tests the public URL.
+3. `deploy-staging`: points the Railway staging web service at that image, waits until Railway
+   says it is live (database migrations run first), then smoke-tests the public URL. Then it moves
+   the background worker to the same image and waits until that exact deployment's worker reports
+   in.
 4. `deploy-production`: waits for a manual approval, then does the same with the same image. If
-   anything fails, the previous image is restored automatically and the run is marked failed.
+   anything fails, the previous images of both services are restored automatically and the run is
+   marked failed. A rollback works even after a release that added a database migration.
 
 The deploy tooling lives in [deploy/](deploy/) and is tested like the app.
 

@@ -84,15 +84,18 @@ Applies (the app is deployed to staging and production), at a minimal level:
 - How configuration and secrets differ per environment: All configuration is environment
   variables read in one module (`backend/app/config.py`). Secrets live only in GitHub
   Environments secrets (CI/CD) and Railway variables (runtime) — never in the repo. `.env` is
-  git-ignored; `.env.example` lists the variable names. Railway app service variables:
+  git-ignored; `.env.example` lists the variable names. Railway web service variables:
   `DATABASE_URL` (built from the environment's Postgres service with Railway references, using
-  the `postgresql+psycopg://` prefix) and `PORT`. GitHub environment secret `RAILWAY_TOKEN` and
-  variables `RAILWAY_ENVIRONMENT_ID`, `RAILWAY_SERVICE_ID`, `APP_URL`, set separately on `staging`
-  and `production`. `COOKIE_SECURE` (default on, so Railway needs nothing) is the one runtime
+  the `postgresql+psycopg://` prefix), `PORT` and `SECRET_KEY`. The worker service has
+  `DATABASE_URL`, `SECRET_KEY`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_STARTTLS`, `EMAIL_FROM` and
+  `APP_BASE_URL` (Railway also sets `RAILWAY_DEPLOYMENT_ID`, which the worker reports). Optional:
+  `JOB_BACKOFF_SECONDS` (local demos), `SMTP_USERNAME` and `SMTP_PASSWORD`. Local-only: `STATIC_DIR`
+  is set by the Dockerfile, `COOKIE_SECURE` by `.env`. GitHub environment secret `RAILWAY_TOKEN` and
+  variables `RAILWAY_ENVIRONMENT_ID`, `RAILWAY_SERVICE_ID`, `RAILWAY_WORKER_SERVICE_ID`, `APP_URL`,
+  set separately on `staging` and `production`. `COOKIE_SECURE` (default on, so Railway needs nothing) is the one runtime
   setting that only `.env` changes: it is set to `false` for local development over plain http,
   and must never be set elsewhere. The container starts uvicorn with `--proxy-headers`, so the
-  login rate limit sees real client addresses behind Railway's proxy. Full list for later
-  phases: [TODO]
+  login rate limit sees real client addresses behind Railway's proxy.
 - How a release ships, and how it gets rolled back when it's wrong: GitHub Actions
   (`.github/workflows/`). Pull request: lint, type check, backend and frontend tests against a real
   Postgres, migrations applied from scratch, tenant-isolation and role-matrix tests, dependency and
