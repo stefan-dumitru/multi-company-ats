@@ -112,13 +112,14 @@ The roles table above says *what* each role can do. This section says *how*.
 - **Role(s):** Company admin.
 - **Trigger:** Users page.
 - **Main flow:** Admin enters email and role (recruiter or interviewer, or another admin). The app
-  creates an `Invitation` and emails a single-use link (until Phase 3 the admin is shown the link
-  once, at creation, and passes it on themselves). The invitee sets a name and password and joins
+  creates an `Invitation` and queues an email with a single-use link (the worker sends it; the
+  admin is also shown the link once, at creation, in case the email goes astray). The invitee sets a name and password and joins
   the company with that role; the role and company come from the invitation, never from the
   invitee.
 - **Rules & edge cases:** An email that already has an account (including a candidate account) is
   rejected: one email is one account. Invitations expire after 7 days. Re-sending invalidates the old
-  link. Deactivating a user blocks login and revokes their sessions but keeps all their data;
+  link; an email still waiting in the queue for a link that has since been replaced, accepted or
+  expired is not sent. Deactivating a user blocks login and revokes their sessions but keeps all their data;
   their jobs and pending interviews are flagged "needs reassignment" for the admin. An admin
   cannot deactivate or demote the last active admin of a company (checked under a lock, so two
   admins acting at the same moment cannot empty the company of admins). An admin can reactivate a

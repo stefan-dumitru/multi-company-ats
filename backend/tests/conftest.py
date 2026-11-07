@@ -24,6 +24,13 @@ from app.main import app
 ALEMBIC_INI = Path(__file__).resolve().parents[1] / "alembic.ini"
 
 
+@pytest.fixture(autouse=True)
+def signing_key(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Links are signed with SECRET_KEY, which the web app requires at startup. Tests use a
+    throwaway low-entropy value (not secret-looking, so the secret scan has nothing to flag)."""
+    monkeypatch.setenv("SECRET_KEY", "k" * 40)
+
+
 @pytest.fixture(scope="session")
 def migrated_database_url() -> Iterator[str]:
     server_url = make_url(get_database_url())

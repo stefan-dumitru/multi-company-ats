@@ -108,6 +108,19 @@ def get_smtp_settings() -> SmtpSettings:
     )
 
 
+MIN_SECRET_KEY_LENGTH = 32
+
+
+def get_secret_key() -> str:
+    """The key that signs links in emails. Keep it secret; changing it invalidates every link."""
+    value = os.environ.get("SECRET_KEY", "")
+    if not value.strip():
+        raise RuntimeError("SECRET_KEY is not set. See .env.example.")
+    if len(value) < MIN_SECRET_KEY_LENGTH:
+        raise RuntimeError(f"SECRET_KEY must be at least {MIN_SECRET_KEY_LENGTH} characters.")
+    return value
+
+
 def get_deployment_id() -> str | None:
     """Which deployment this process belongs to (Railway sets it). None in local development."""
     return os.environ.get("RAILWAY_DEPLOYMENT_ID", "").strip() or None

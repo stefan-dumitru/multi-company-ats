@@ -221,6 +221,9 @@ Applies. Services and their failure behavior:
 - Timeout and retry policy per integration — never an unbounded wait: every outbound call sets an
   explicit timeout. Values: SMTP 10 seconds per network step (connect, each command); the other
   integrations set theirs when they are built. Retries only via the background worker, not inline.
+- `SECRET_KEY` (web and worker, per environment): signs the links in emails. Required at startup
+  by both; at least 32 characters; generated randomly per environment, kept in Railway variables
+  and a local file under `~/.ats-secrets/`, never in git. Rotating it invalidates all links.
 - Email settings (environment variables, read by the worker and checked when it starts, so a bad
   value stops it instead of failing every job): `SMTP_HOST`, `SMTP_PORT` (default 587),
   `SMTP_STARTTLS` (default on; off only for the private-network Mailpit), `SMTP_USERNAME` and

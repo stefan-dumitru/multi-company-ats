@@ -1,5 +1,7 @@
 """Which function handles which job type."""
 
+import logging
+
 from sqlalchemy.orm import Session
 
 from app.config import get_smtp_settings
@@ -7,6 +9,8 @@ from app.emails import TEMPLATES
 from app.integrations.smtp import send_email
 from app.models import BackgroundJob
 from app.worker.runner import Handler
+
+logger = logging.getLogger("ats.worker")
 
 
 def send_email_job(db: Session, job: BackgroundJob) -> None:
@@ -20,6 +24,9 @@ def send_email_job(db: Session, job: BackgroundJob) -> None:
     if template is None:
         raise LookupError(f"No email template named {template_name!r}")
     email = template(db, job.payload)
+    if email is None:
+        logger.info("nothing to send", extra={"job_id": str(job.id), "template": template_name})
+        return
     send_email(get_smtp_settings(), email.to, email.subject, email.body)
 
 

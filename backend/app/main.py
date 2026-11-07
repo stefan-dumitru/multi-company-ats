@@ -1,4 +1,6 @@
 import logging
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -12,7 +14,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.auth.permissions import public_route
-from app.config import get_static_dir
+from app.config import get_secret_key, get_static_dir
 from app.db import get_db
 from app.error_handlers import add_error_handlers
 from app.frontend import mount_frontend
@@ -23,7 +25,16 @@ logger = logging.getLogger(__name__)
 
 ALEMBIC_INI = Path(__file__).resolve().parents[1] / "alembic.ini"
 
-app = FastAPI(title="ATS")
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
+    # Fail at startup, not on the first invitation: without the key the health check never passes
+    # and the deploy is stopped (and rolled back) before users see anything.
+    get_secret_key()
+    yield
+
+
+app = FastAPI(title="ATS", lifespan=lifespan)
 add_error_handlers(app)
 app.include_router(auth.router)
 app.include_router(companies.router)
