@@ -1,5 +1,6 @@
 import { Navigate, Outlet, useLocation } from 'react-router'
 import NotFoundPage from '@/pages/NotFoundPage'
+import VerifyEmailRequiredPage from '@/pages/VerifyEmailRequiredPage'
 import { useAuth } from './AuthContext'
 import type { Role } from './types'
 
@@ -15,6 +16,11 @@ export function RequireAuth() {
   if (state.status === 'anonymous') {
     const from = location.pathname + location.search
     return <Navigate to="/login" replace state={{ from }} />
+  }
+  if (state.user.email_verified_at === null) {
+    // Logged in, but may do nothing else until the address is verified. The server enforces this
+    // too; this just shows why instead of a page full of errors.
+    return <VerifyEmailRequiredPage email={state.user.email} />
   }
   return <Outlet />
 }

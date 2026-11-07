@@ -7,6 +7,7 @@ import LoginPage from '@/pages/LoginPage'
 import NotFoundPage from '@/pages/NotFoundPage'
 import RegisterCompanyPage from '@/pages/RegisterCompanyPage'
 import UsersPage from '@/pages/UsersPage'
+import VerifyEmailPage from '@/pages/VerifyEmailPage'
 
 export default function App() {
   return (
@@ -16,6 +17,7 @@ export default function App() {
         <Route path="login" element={<LoginPage />} />
         <Route path="register" element={<RegisterCompanyPage />} />
         <Route path="accept-invitation" element={<AcceptInvitationPage />} />
+        <Route path="verify-email" element={<VerifyEmailPage />} />
         <Route element={<RequireAuth />}>
           <Route element={<RequireRole roles={['company_admin']} />}>
             <Route path="users" element={<UsersPage />} />

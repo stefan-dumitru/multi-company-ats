@@ -2,7 +2,7 @@ import { render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { Route, Routes, MemoryRouter, useLocation } from 'react-router'
 import { setCsrfToken, setUnauthorizedHandler } from '@/api/client'
-import { adminUser, recruiterUser, sessionFor, stubFetch } from '@/test-utils'
+import { adminUser, recruiterUser, sessionFor, stubFetch, unverifiedAdmin } from '@/test-utils'
 import { AuthProvider } from './AuthContext'
 import { RequireAuth, RequireRole } from './guards'
 
@@ -64,6 +64,15 @@ describe('route guards', () => {
     renderAt('/private')
 
     expect(await screen.findByText('private page')).toBeInTheDocument()
+  })
+
+  it('stops an unverified user at the door with the verify screen instead of the page', async () => {
+    stubFetch({ 'GET /api/auth/me': { status: 200, body: sessionFor(unverifiedAdmin) } })
+
+    renderAt('/private')
+
+    expect(await screen.findByText('Verify your email')).toBeInTheDocument()
+    expect(screen.queryByText('private page')).not.toBeInTheDocument()
   })
 
   it('shows "not found", not "forbidden", to a role that may not use the page', async () => {

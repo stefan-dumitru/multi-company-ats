@@ -13,6 +13,8 @@ interface AuthContextValue {
   state: AuthState
   /** Remember a session the server just created (login, company signup, invitation). */
   startSession: (info: SessionInfo) => void
+  /** Ask the server who is logged in now (for example after the email was verified). */
+  refreshUser: () => Promise<void>
   login: (email: string, password: string) => Promise<void>
   logout: () => Promise<void>
 }
@@ -70,6 +72,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [startSession],
   )
 
+  const refreshUser = useCallback(async () => {
+    // If this fails the current user stays as it was and the error reaches the caller.
+    startSession(await api<SessionInfo>('/api/auth/me'))
+  }, [startSession])
+
   const logout = useCallback(async () => {
     // If the request fails the session still exists on the server, so we must not pretend to be
     // logged out: the error reaches the caller and the user stays logged in.
@@ -78,8 +85,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [endSession])
 
   const value = useMemo(
-    () => ({ state, startSession, login, logout }),
-    [state, startSession, login, logout],
+    () => ({ state, startSession, refreshUser, login, logout }),
+    [state, startSession, refreshUser, login, logout],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

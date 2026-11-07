@@ -104,7 +104,10 @@ export const adminUser: User = {
   full_name: 'Ada Admin',
   role: 'company_admin',
   company_id: 'c-1',
+  email_verified_at: '2026-01-01T09:00:00Z',
 }
+
+export const unverifiedAdmin: User = { ...adminUser, email_verified_at: null }
 
 export const recruiterUser: User = {
   id: 'u-rec',
@@ -112,6 +115,7 @@ export const recruiterUser: User = {
   full_name: 'Rae Recruiter',
   role: 'recruiter',
   company_id: 'c-1',
+  email_verified_at: '2026-01-01T09:00:00Z',
 }
 
 export function sessionFor(user: User, csrfToken = 'csrf-token-1') {

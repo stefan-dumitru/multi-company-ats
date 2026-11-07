@@ -2,12 +2,12 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { useState } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { api, setCsrfToken, setUnauthorizedHandler } from '@/api/client'
-import { adminUser, sessionFor, stubFetch } from '@/test-utils'
+import { adminUser, sessionFor, stubFetch, unverifiedAdmin } from '@/test-utils'
 import { AuthProvider, useAuth } from './AuthContext'
 
 /** Shows whatever the auth context says, and has a button for each thing a page can do. */
 function Probe() {
-  const { state, login, logout, startSession } = useAuth()
+  const { state, login, logout, startSession, refreshUser } = useAuth()
   const [problem, setProblem] = useState('')
 
   return (
@@ -24,6 +24,10 @@ function Probe() {
         start session
       </button>
       <button onClick={() => api('/api/users').catch(() => undefined)}>ask for users</button>
+      <button onClick={() => refreshUser().catch((e) => setProblem(e.message))}>refresh</button>
+      {state.status === 'authenticated' && (
+        <p>verified: {state.user.email_verified_at === null ? 'no' : 'yes'}</p>
+      )}
     </div>
   )
 }
@@ -183,5 +187,37 @@ describe('AuthProvider', () => {
     expect(() => render(<Probe />)).toThrow(/AuthProvider/)
 
     quiet.mockRestore()
+  })
+  it('re-reads the user when asked, so a change made elsewhere shows up', async () => {
+    let verified = false
+    stubFetch({
+      'GET /api/auth/me': () => ({
+        status: 200,
+        body: sessionFor(verified ? adminUser : unverifiedAdmin),
+      }),
+    })
+    renderProbe()
+    expect(await screen.findByText('verified: no')).toBeInTheDocument()
+
+    verified = true
+    fireEvent.click(screen.getByRole('button', { name: 'refresh' }))
+
+    expect(await screen.findByText('verified: yes')).toBeInTheDocument()
+  })
+
+  it('keeps the current user and reports the problem when a refresh fails', async () => {
+    let failing = false
+    stubFetch({
+      'GET /api/auth/me': () =>
+        failing ? { status: 500 } : { status: 200, body: sessionFor(unverifiedAdmin) },
+    })
+    renderProbe()
+    await screen.findByText('verified: no')
+
+    failing = true
+    fireEvent.click(screen.getByRole('button', { name: 'refresh' }))
+
+    expect(await screen.findByRole('alert')).toBeInTheDocument()
+    expect(screen.getByText('verified: no')).toBeInTheDocument()
   })
 })

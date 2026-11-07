@@ -7,6 +7,8 @@ export interface User {
   full_name: string
   role: Role
   company_id: string | null
+  /** When the user proved they own the address; null until they do. */
+  email_verified_at: string | null
 }
 
 /** The server's answer to logging in, signing up or accepting an invitation. */
