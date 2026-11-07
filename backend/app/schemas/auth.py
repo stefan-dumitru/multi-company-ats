@@ -4,6 +4,7 @@ from datetime import datetime
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.models import Role
+from app.schemas.common import EmailAddress
 
 
 class LoginRequest(BaseModel):
@@ -34,3 +35,14 @@ class SessionInfo(BaseModel):
 
 class VerifyEmailRequest(BaseModel):
     token: str = Field(max_length=200)
+
+
+class ForgotPasswordRequest(BaseModel):
+    email: EmailAddress
+
+
+class ResetPasswordRequest(BaseModel):
+    token: str = Field(max_length=200)
+    # Generous cap, only so nobody can make the server hash megabytes of text; the real rules
+    # (length) are checked by the password policy and answered with a helpful message.
+    password: str = Field(max_length=1024)

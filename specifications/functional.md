@@ -112,6 +112,27 @@ The roles table above says *what* each role can do. This section says *how*.
   verify their address too (accepting a link an admin passed on proves nothing about the inbox).
   The same rule applies to every account, whichever way it was created.
 
+### Reset a forgotten password
+
+- **Role(s):** Any user with a password (company staff and candidates). Not logged in.
+- **Trigger:** "Forgot your password?" on the login page.
+- **Main flow:** The user enters their email. Whatever the address is, the app answers the same
+  words ("If an account exists for that address, we have sent a link to reset the password"). If an
+  active account has that address, a reset email is queued in the same transaction. The email
+  holds a signed, single-use link that expires after 1 hour. Opening it shows a "choose a new
+  password" page; the user submits a password that meets the rules (12 to 128 characters). The
+  password is replaced, the user is logged out everywhere (every session ends), and they are told
+  by email that their password was changed. They then log in with the new password; the link
+  itself never logs anyone in.
+- **Rules & edge cases:** The answer must never reveal whether an address has an account, and
+  neither may a limit: at most 3 reset links per hour per account, and beyond that nothing more is
+  sent while the answer stays identical. Asking again voids the older link. A weak password is
+  refused without using up the link. A used, expired, forged or wrong-purpose link, and a link
+  for a deactivated account, all get the same generic refusal. Using the link also clears the
+  login lockout and counts as proof of the inbox (an unverified address becomes verified). The
+  reset is written to the audit log (who and when, never the password or the link). Deactivated
+  accounts cannot reset.
+
 ### Invite and deactivate staff
 
 - **Role(s):** Company admin.
