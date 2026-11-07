@@ -127,6 +127,8 @@ NOT_COMPANY_SCOPED = {
     "POST /api/auth/login": "public; the user is found by their own credentials",
     "GET /api/auth/me": "returns the caller's own session only",
     "POST /api/auth/logout": "ends the caller's own session only",
+    "POST /api/auth/verify-email": "public; the user is found by a signed link, no id taken",
+    "POST /api/auth/resend-verification": "acts on the caller's own account only",
     "POST /api/companies": "creates a new company; takes no existing id",
     "POST /api/invitations/accept": "public; the invitation is found by its secret token",
     "POST /api/invitations": "creates in the caller's own company; takes no foreign id "

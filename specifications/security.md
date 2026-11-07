@@ -42,6 +42,12 @@ This section covers how it's implemented and how it fails.
   the email as verified and the existing account's email is verified too; otherwise refuse and
   ask the user to log in with the password first. A deactivated or anonymized user cannot sign in
   by any method. Whether staff may use Google at all: [TODO]
+- Unverified accounts: a user whose email is not verified can log in and use only their own
+  account (`ACCOUNT_SELF`: who am I, log out, resend the link). Every other permissioned route
+  answers `403` with `code: email_not_verified`; the check runs inside `require_permission`, after
+  the role check (a route a role could never use does not hint "verify"), so no route can forget
+  it, and the role x endpoint matrix has an "unverified" dimension that proves it route by route.
+  Resending is limited to 3 links per hour per user so it cannot flood an inbox.
 - Invitations and email-verification/reset links: single-use, expiring (invitation 7 days, email
   verification 24 hours, password reset 1 hour), and **signed, not stored**: a link is
   `<row id>.<HMAC-SHA256(SECRET_KEY, purpose:row id)>`. An email needs the real link but the job
@@ -131,7 +137,6 @@ The per-project choices:
   - Company signup is open and not rate limited, so someone could create many companies (Phase 2).
   - A failed signup still hints that an email is registered, because the reply cannot be fully
     non-revealing until emails exist to tell the owner instead (fixed by Phase 3).
-  - Email addresses are not yet verified: accounts work without it (enforced from Phase 3).
   - The route audit reads FastAPI internals; a FastAPI upgrade that changes them fails the test
     loudly rather than passing silently, so check it first when upgrading.
   Others: [TODO]

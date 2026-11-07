@@ -17,7 +17,9 @@ from app.auth.sessions import (
 )
 from app.db import get_db
 from app.models import User, UserSession
-from app.schemas.auth import LoginRequest, SessionInfo, UserOut
+from app.schemas.auth import LoginRequest, SessionInfo, UserOut, VerifyEmailRequest
+from app.services import email_verification
+from app.services.errors import ResendLimitReached
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
@@ -87,3 +89,31 @@ def logout(
     revoke_session(session, datetime.now(UTC))
     db.commit()
     response.delete_cookie(SESSION_COOKIE_NAME, path="/")
+
+
+# One answer for every kind of bad link, so it never helps anyone guess or probe.
+INVALID_VERIFICATION_LINK = "This verification link is invalid or has expired."
+
+
+@router.post("/verify-email", status_code=204, dependencies=[Depends(public_route)])
+def verify_email(payload: VerifyEmailRequest, db: Session = Depends(get_db)) -> None:
+    """Public on purpose: the link is opened from an email, possibly in a browser that is not
+    logged in. The signed link itself is the proof."""
+    if not email_verification.confirm_email(db, payload.token, datetime.now(UTC)):
+        raise HTTPException(status_code=400, detail=INVALID_VERIFICATION_LINK)
+    db.commit()
+
+
+@router.post("/resend-verification", status_code=204)
+def resend_verification(
+    user: User = Depends(require_permission(Permission.ACCOUNT_SELF)),
+    db: Session = Depends(get_db),
+) -> None:
+    try:
+        email_verification.resend_verification_email(db, user, datetime.now(UTC))
+    except ResendLimitReached as error:
+        raise HTTPException(
+            status_code=429,
+            detail="Too many verification emails requested. Please try again in an hour.",
+        ) from error
+    db.commit()

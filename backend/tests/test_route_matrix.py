@@ -23,7 +23,13 @@ from fastapi.routing import APIRoute
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
-from app.auth.permissions import PUBLIC, ROLE_PERMISSIONS, declared_access, iter_api_routes
+from app.auth.permissions import (
+    PUBLIC,
+    ROLE_PERMISSIONS,
+    Permission,
+    declared_access,
+    iter_api_routes,
+)
 from app.auth.sessions import SESSION_COOKIE_NAME, create_session
 from app.main import app as real_app
 from app.models import Role
@@ -39,6 +45,8 @@ POLICY: dict[str, frozenset[Role] | None] = {
     "POST /api/auth/login": None,
     "GET /api/auth/me": EVERY_LOGGED_IN_ROLE,
     "POST /api/auth/logout": EVERY_LOGGED_IN_ROLE,
+    "POST /api/auth/verify-email": None,
+    "POST /api/auth/resend-verification": EVERY_LOGGED_IN_ROLE,
     "POST /api/companies": None,
     "POST /api/invitations": ADMIN_ONLY,
     "GET /api/invitations": ADMIN_ONLY,
@@ -74,13 +82,15 @@ def visitor(client: TestClient, db: Session) -> Iterator[TestClient]:
     yield client
 
 
-def log_in_as(client: TestClient, db: Session, role: Role) -> str:
+def log_in_as(client: TestClient, db: Session, role: Role, *, verified: bool = True) -> str:
     """Give the client a brand-new session for a user with this role; return its CSRF token.
 
     A new session per call, because some routes (logout) end the session they are called with.
     """
     company = None if role == Role.CANDIDATE else make_company(db, f"Company of {uuid.uuid4().hex}")
-    user = make_user(db, email=f"{uuid.uuid4().hex}@example.test", role=role, company=company)
+    user = make_user(
+        db, email=f"{uuid.uuid4().hex}@example.test", role=role, company=company, verified=verified
+    )
     token, session = create_session(db, user, datetime.now(UTC))
     db.commit()
     client.cookies.clear()
@@ -143,3 +153,34 @@ def test_each_role_on_each_route(client: TestClient, db: Session, key: str, role
         assert status not in (401, 403), f"{role.value} should reach {key} but got {status}"
     else:
         assert status == 403, f"{role.value} should be refused on {key} but got {status}"
+
+
+# ---- the "unverified" dimension ----------------------------------------------------------
+# A user whose email is not verified can log in and use their own account, nothing else.
+
+NOT_VERIFIED_BODY = {"detail": "Verify your email first.", "code": "email_not_verified"}
+
+
+@pytest.mark.parametrize("role", list(Role), ids=lambda role: role.value)
+@pytest.mark.parametrize("key", sorted(ROUTES))
+def test_each_role_on_each_route_while_unverified(
+    client: TestClient, db: Session, key: str, role: Role
+) -> None:
+    allowed = POLICY[key]
+    csrf_token = log_in_as(client, db, role, verified=False)
+    method, template = key.split(" ", 1)
+
+    response = client.request(method, concrete_path(template), headers={"X-CSRF-Token": csrf_token})
+
+    if allowed is None:
+        # Public routes do not care who you are.
+        assert response.status_code not in (401, 403), f"{key} is public but answered it"
+    elif role not in allowed:
+        # Refused for the role, whatever the verification state; no misleading "verify" hint.
+        assert response.status_code == 403
+        assert response.json() != NOT_VERIFIED_BODY, f"{key} hinted at verification to {role.value}"
+    elif declared_access(ROUTES[key]) == [Permission.ACCOUNT_SELF]:
+        assert response.status_code not in (401, 403), f"unverified {role.value} lost {key}"
+    else:
+        assert response.status_code == 403
+        assert response.json() == NOT_VERIFIED_BODY, f"{key} let an unverified {role.value} in"

@@ -32,6 +32,7 @@ def sign_up(
             full_name=payload.full_name,
             email=payload.email,
             password=payload.password,
+            now=now,
         )
     except PasswordTooWeak as error:
         raise HTTPException(status_code=422, detail=str(error)) from error

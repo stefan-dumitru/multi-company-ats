@@ -16,3 +16,11 @@ class InvalidInvitation(Exception):
 
 class LastAdminError(Exception):
     """The change would leave a company without an active admin (data-model.md > Company)."""
+
+
+class ResendLimitReached(Exception):
+    """Too many verification emails requested for this account within the last hour."""
+
+
+class EmailNotVerified(Exception):
+    """The caller is logged in but has not verified their email, so may only use their account."""

@@ -1,4 +1,5 @@
 import uuid
+from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -21,9 +22,15 @@ class UserOut(BaseModel):
     full_name: str
     role: Role
     company_id: uuid.UUID | None
+    # None until the user proves they own the address; the SPA shows the verify screen then.
+    email_verified_at: datetime | None
 
 
 class SessionInfo(BaseModel):
     user: UserOut
     # The SPA keeps this in memory and sends it back in the X-CSRF-Token header.
     csrf_token: str
+
+
+class VerifyEmailRequest(BaseModel):
+    token: str = Field(max_length=200)

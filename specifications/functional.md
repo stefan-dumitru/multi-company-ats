@@ -102,10 +102,15 @@ The roles table above says *what* each role can do. This section says *how*.
   and logs them in with limited access until the email is verified.
 - **Rules & edge cases:** Email already registered -> one generic error ("We couldn't create this
   account. If you already have one, log in instead."). It does not state that the account exists,
-  but until emails exist (Phase 3) the failure itself still hints at it; a fully non-revealing flow
-  needs an email to the owner. Company name need not be unique. The transaction is all-or-nothing:
-  no company without an admin. Until Phase 3 sends verification emails, an unverified admin has
-  full access; Phase 3 adds the "limited access until verified" rule.
+  but the failure itself still hints at it; a fully non-revealing flow needs an email to the
+  existing owner, which v1 does not send. Company name need not be unique. The transaction is all-or-nothing:
+  no company without an admin. Until the address is verified the admin can log in and use their own account (see who
+  they are, log out, ask for a new link) and nothing else: every other call is refused with
+  `403 {"detail": "Verify your email first.", "code": "email_not_verified"}`, and the app shows a
+  "verify your email" screen with a Resend button. The verification link is signed, single-use and
+  expires after 24 hours; asking for a new one voids the old one, at most 3 per hour. Invited staff
+  verify their address too (accepting a link an admin passed on proves nothing about the inbox).
+  The same rule applies to every account, whichever way it was created.
 
 ### Invite and deactivate staff
 

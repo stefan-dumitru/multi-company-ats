@@ -11,13 +11,13 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models import Invitation, Role, User
-from tests.factories import DEFAULT_PASSWORD, make_company, make_user
+from tests.factories import DEFAULT_PASSWORD, make_company, make_user, verify_email_of
 
 INVALID_LINK = {"detail": "This invitation link is invalid or has expired."}
 
 
-def sign_up_company(client: TestClient, name: str, email: str) -> str:
-    """Register a company; the client is now logged in as its admin. Returns the CSRF token."""
+def sign_up_company(client: TestClient, db: Session, name: str, email: str) -> str:
+    """Register a company; the client is now logged in as its (verified) admin. Returns CSRF."""
     response = client.post(
         "/api/companies",
         json={
@@ -28,6 +28,7 @@ def sign_up_company(client: TestClient, name: str, email: str) -> str:
         },
     )
     assert response.status_code == 201
+    verify_email_of(db, email)  # these tests are about invitations, not about verification
     return str(response.json()["csrf_token"])
 
 
@@ -55,8 +56,8 @@ def accept(client: TestClient, token: str, **overrides: str) -> Response:
 
 
 @pytest.fixture
-def admin_csrf(client: TestClient) -> str:
-    return sign_up_company(client, "Acme", "admin@acme.test")
+def admin_csrf(client: TestClient, db: Session) -> str:
+    return sign_up_company(client, db, "Acme", "admin@acme.test")
 
 
 # ---- signed links -------------------------------------------------------------------------
@@ -186,7 +187,7 @@ def test_creating_an_invitation_needs_the_csrf_token(client: TestClient, admin_c
 
 
 def test_only_admins_may_invite(client: TestClient, db: Session) -> None:
-    csrf_token = sign_up_company(client, "Acme", "admin@acme.test")
+    csrf_token = sign_up_company(client, db, "Acme", "admin@acme.test")
     token = invite(client, csrf_token, "rae@acme.test").json()["token"]
     recruiter_csrf = accept(client, token).json()["csrf_token"]  # now logged in as the recruiter
 
@@ -214,10 +215,10 @@ def test_the_list_never_contains_tokens(client: TestClient, admin_csrf: str) -> 
 
 
 def test_a_company_sees_only_its_own_invitations(client: TestClient, db: Session) -> None:
-    csrf_a = sign_up_company(client, "Acme", "admin@acme.test")
+    csrf_a = sign_up_company(client, db, "Acme", "admin@acme.test")
     invite(client, csrf_a, "rae@acme.test")
     client.cookies.clear()
-    csrf_b = sign_up_company(client, "Globex", "admin@globex.test")
+    csrf_b = sign_up_company(client, db, "Globex", "admin@globex.test")
     invite(client, csrf_b, "gus@globex.test")
 
     emails = {i["email"] for i in client.get("/api/invitations").json()}
@@ -225,11 +226,11 @@ def test_a_company_sees_only_its_own_invitations(client: TestClient, db: Session
     assert emails == {"gus@globex.test"}
 
 
-def test_the_same_email_can_be_invited_by_two_companies(client: TestClient) -> None:
-    csrf_a = sign_up_company(client, "Acme", "admin@acme.test")
+def test_the_same_email_can_be_invited_by_two_companies(client: TestClient, db: Session) -> None:
+    csrf_a = sign_up_company(client, db, "Acme", "admin@acme.test")
     assert invite(client, csrf_a, "rae@shared.test").status_code == 201
     client.cookies.clear()
-    csrf_b = sign_up_company(client, "Globex", "admin@globex.test")
+    csrf_b = sign_up_company(client, db, "Globex", "admin@globex.test")
 
     assert invite(client, csrf_b, "rae@shared.test").status_code == 201
 
@@ -380,8 +381,8 @@ def test_accepting_marks_the_invitation_used(
     assert stored is not None and stored.accepted_at is not None
 
 
-def test_the_whole_story_signup_invite_accept_login(client: TestClient) -> None:
-    csrf_token = sign_up_company(client, "Acme", "admin@acme.test")
+def test_the_whole_story_signup_invite_accept_login(client: TestClient, db: Session) -> None:
+    csrf_token = sign_up_company(client, db, "Acme", "admin@acme.test")
     token = invite(client, csrf_token, "rae@acme.test").json()["token"]
     client.cookies.clear()
 
