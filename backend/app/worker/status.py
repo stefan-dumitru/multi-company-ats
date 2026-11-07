@@ -1,6 +1,6 @@
 """The text behind `python -m app.worker status`."""
 
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -15,6 +15,20 @@ def job_counts(db: Session) -> dict[str, int]:
     rows = db.execute(select(BackgroundJob.status, func.count()).group_by(BackgroundJob.status))
     found = {status: count for status, count in rows}
     return {status.value: found.get(status, 0) for status in JobStatus}
+
+
+def recent_failure_count(db: Session, now: datetime, window: timedelta) -> int:
+    """How many jobs gave up for good within the last `window`.
+
+    Failed jobs stay in the table, so the monitor asks about a window instead of "any": otherwise
+    one failure would keep it red forever.
+    """
+    count = db.scalar(
+        select(func.count())
+        .select_from(BackgroundJob)
+        .where(BackgroundJob.status == JobStatus.FAILED, BackgroundJob.finished_at >= now - window)
+    )
+    return count or 0
 
 
 def format_status(db: Session, now: datetime) -> str:

@@ -42,6 +42,7 @@ POLICY: dict[str, frozenset[Role] | None] = {
     "GET /health": None,
     "GET /ready": None,
     "GET /health/worker": None,
+    "GET /health/jobs": None,
     "POST /api/auth/login": None,
     "GET /api/auth/me": EVERY_LOGGED_IN_ROLE,
     "POST /api/auth/logout": EVERY_LOGGED_IN_ROLE,
