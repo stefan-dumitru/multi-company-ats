@@ -9,7 +9,12 @@ from types import FrameType
 
 from sqlalchemy.orm import Session
 
-from app.config import get_app_base_url, get_deployment_id, get_smtp_settings
+from app.config import (
+    get_app_base_url,
+    get_deployment_id,
+    get_secret_key,
+    get_smtp_settings,
+)
 from app.db import get_engine
 from app.logging import configure_logging
 from app.worker.handlers import HANDLERS
@@ -34,6 +39,7 @@ def run_worker() -> None:
     # healthy while every email it handles fails.
     get_smtp_settings()
     get_app_base_url()
+    get_secret_key()
 
     logger.info("worker started")
     with Session(get_engine()) as db:

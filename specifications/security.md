@@ -42,8 +42,16 @@ This section covers how it's implemented and how it fails.
   the email as verified and the existing account's email is verified too; otherwise refuse and
   ask the user to log in with the password first. A deactivated or anonymized user cannot sign in
   by any method. Whether staff may use Google at all: [TODO]
-- Invitations and email-verification/reset tokens: random, single-use, stored hashed, expiring
-  (invitation 7 days, email verification 24 hours, password reset 1 hour). Login and reset responses must not reveal whether an email is registered.
+- Invitations and email-verification/reset links: single-use, expiring (invitation 7 days, email
+  verification 24 hours, password reset 1 hour), and **signed, not stored**: a link is
+  `<row id>.<HMAC-SHA256(SECRET_KEY, purpose:row id)>`. An email needs the real link but the job
+  queue must hold no secrets, so the queue holds only the row id and the worker rebuilds the link
+  when it sends; nothing secret sits in the queue or the database. The purpose is signed too, so a
+  link for one use (a reset) cannot serve another (an invitation). Verification recomputes the
+  signature in constant time and then checks the row (unused, unexpired, not revoked); "unused" is
+  enforced by the database, not by the signature. `SECRET_KEY` (at least 32 characters, one per
+  environment, set as a Railway variable and never in git) is required at startup, and changing
+  it invalidates every outstanding link, which is the emergency switch if it ever leaks. Login and reset responses must not reveal whether an email is registered.
 
 ## Authorization
 
@@ -80,8 +88,8 @@ This section covers how it's implemented and how it fails.
   the application level (key via environment variable; scheme [TODO]).
 - Transit security beyond the HTTPS baseline in CLAUDE.md: [TODO — confirm that app-to-database
   traffic is private/TLS on Railway]
-- Fields requiring extra protection: `password_hash`, tokens (`Session`, `Invitation`,
-  `UserToken`) stored only as hashes; `GoogleCalendarConnection.refresh_token_encrypted`;
+- Fields requiring extra protection: `password_hash`, session tokens (`Session`) stored only as hashes; invitation and
+  `UserToken` links are signed with `SECRET_KEY` and not stored (see Authentication); `GoogleCalendarConnection.refresh_token_encrypted`;
   candidate PII and `Note`/`Scorecard` content never written to logs.
 
 ## File Upload Handling

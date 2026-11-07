@@ -28,6 +28,7 @@ def test_sigterm_stops_the_worker_cleanly(db: Session, migrated_database_url: st
         "SMTP_HOST": "127.0.0.1",
         "EMAIL_FROM": "ATS <no-reply@ats.test>",
         "APP_BASE_URL": "https://ats.test",
+        "SECRET_KEY": "k" * 40,
     }
     process = subprocess.Popen(
         [sys.executable, "-m", "app.worker"],

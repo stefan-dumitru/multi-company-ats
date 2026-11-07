@@ -244,10 +244,12 @@ above.
 
 - **Invitation:** `id`, `company_id`, `email`, `role` (staff roles only), `token_hash`,
   `invited_by`, `created_at`, `expires_at` (7 days), `accepted_at`, `revoked_at` (set when a
-  re-send replaces the link). Single-use; the token is stored hashed. At most one live
+  re-send replaces the link). Single-use. The link is `<id>.<signature>` (signed with `SECRET_KEY`, never stored);
+  `token_hash` is kept for the schema's sake and is not what is checked. At most one live
   invitation per company and email.
 - **UserToken:** `id`, `user_id`, `type` (`email_verification` | `password_reset`), `token_hash`,
-  `expires_at` (24 hours / 1 hour), `used_at`. Single-use; hashed.
+  `expires_at` (24 hours / 1 hour), `used_at`. Single-use; the link is signed with `SECRET_KEY`
+  like an invitation's (so `token_hash` is not needed for new rows).
 - **OAuthIdentity:** `id`, `user_id`, `provider` (`google`), `provider_subject`, `linked_at`.
   Unique (`provider`, `provider_subject`).
 - **GoogleCalendarConnection:** `user_id`, `refresh_token_encrypted`, `scopes`, `connected_at`.

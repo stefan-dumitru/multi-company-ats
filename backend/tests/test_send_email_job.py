@@ -72,6 +72,19 @@ def test_a_queued_email_is_rendered_and_delivered(
     assert received["Text"].strip() == "Hello, 42."
 
 
+def test_a_template_with_nothing_to_send_finishes_the_job_without_mail(
+    db: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # E.g. the invitation was revoked after the email was queued: sending it now would be wrong.
+    monkeypatch.setitem(emails.TEMPLATES, "nothing", lambda _db, _payload: None)
+    queue_email(db, "nothing")
+
+    runner.run_one_job(db, HANDLERS, lambda: NOW)
+
+    assert only_job(db).status == JobStatus.SUCCEEDED
+    assert mailpit.messages() == []
+
+
 def test_an_unknown_template_fails_the_job_with_its_name(db: Session) -> None:
     queue_email(db, "does_not_exist")
 

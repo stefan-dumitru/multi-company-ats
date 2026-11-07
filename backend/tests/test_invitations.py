@@ -1,6 +1,7 @@
 """Inviting staff and accepting invitations (functional.md > Invite and deactivate staff)."""
 
 import hashlib
+import uuid
 from datetime import UTC, datetime, timedelta
 
 import pytest
@@ -56,6 +57,41 @@ def accept(client: TestClient, token: str, **overrides: str) -> Response:
 @pytest.fixture
 def admin_csrf(client: TestClient) -> str:
     return sign_up_company(client, "Acme", "admin@acme.test")
+
+
+# ---- signed links -------------------------------------------------------------------------
+
+
+def test_a_forged_link_for_a_real_invitation_is_refused(
+    client: TestClient, admin_csrf: str
+) -> None:
+    body = invite(client, admin_csrf, "rae@acme.test").json()
+    invitation_id = body["invitation"]["id"]
+
+    forged = f"{invitation_id}.{'0' * 64}"  # the right row, but not signed by us
+
+    response = accept(client, forged)
+    assert response.status_code == 400
+    assert response.json() == INVALID_LINK
+
+
+def test_a_link_signed_for_another_purpose_is_refused(client: TestClient, admin_csrf: str) -> None:
+    from app.auth import tokens
+
+    body = invite(client, admin_csrf, "rae@acme.test").json()
+    wrong_purpose = tokens.make_token(tokens.PASSWORD_RESET, uuid.UUID(body["invitation"]["id"]))
+
+    assert accept(client, wrong_purpose).status_code == 400
+
+
+def test_changing_the_server_key_kills_outstanding_invitations(
+    client: TestClient, admin_csrf: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    body = invite(client, admin_csrf, "rae@acme.test").json()
+
+    monkeypatch.setenv("SECRET_KEY", "z" * 40)
+
+    assert accept(client, body["token"]).status_code == 400
 
 
 # ---- creating invitations ----------------------------------------------------------------

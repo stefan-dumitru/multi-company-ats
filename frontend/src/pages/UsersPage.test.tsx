@@ -339,7 +339,7 @@ describe('UsersPage: inviting', () => {
     return server
   }
 
-  it('creates an invitation and shows the full link once, with a warning', async () => {
+  it('creates an invitation, says it was emailed, and shows the full link once', async () => {
     const { calls } = await openPage()
 
     fillIn(/invite by email/i, 'newbie@acme.test')
@@ -350,6 +350,7 @@ describe('UsersPage: inviting', () => {
     expect(link).toHaveValue(
       `${window.location.origin}/accept-invitation?token=join-link-for-tests`,
     )
+    expect(screen.getByText(/we have emailed the invitation to/i)).toBeInTheDocument()
     expect(screen.getByText(/shown only once/i)).toBeInTheDocument()
     const post = calls.find((c) => c.method === 'POST' && c.path === '/api/invitations')
     expect(post?.body).toEqual({ email: 'newbie@acme.test', role: 'interviewer' })

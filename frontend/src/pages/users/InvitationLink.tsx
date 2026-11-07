@@ -10,8 +10,8 @@ interface InvitationLinkProps {
 }
 
 /**
- * Shows a new invitation's link. Email does not exist yet (Phase 3), so the admin passes the link
- * on themselves. The server keeps only a hash of it, so this is the one chance to copy it.
+ * Shows a new invitation's link. The server has already queued the invitation email; the link is
+ * shown here as well, once, so the admin can pass it on themselves if the email goes astray.
  */
 export default function InvitationLink({ email, link, onDone }: InvitationLinkProps) {
   const field = useRef<HTMLInputElement>(null)
@@ -32,8 +32,9 @@ export default function InvitationLink({ email, link, onDone }: InvitationLinkPr
   return (
     <section aria-label="New invitation" className="space-y-3 rounded-lg border bg-muted/40 p-4">
       <p>
-        Invitation created for <strong>{email}</strong>. Copy this link and send it to them
-        yourself. It is shown only once: after you close this, it cannot be shown again.
+        Invitation created for <strong>{email}</strong>. We have emailed the invitation to them. If
+        it does not arrive, copy this link and send it yourself. It is shown only once: after you
+        close this, it cannot be shown again.
       </p>
       <div className="space-y-2">
         <Label htmlFor="invitation-link">Invitation link</Label>
