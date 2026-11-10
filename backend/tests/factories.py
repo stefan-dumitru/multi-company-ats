@@ -74,7 +74,10 @@ def make_job(
     created_by: User,
     recruiters: list[User] | None = None,
     title: str = "Backend Engineer",
+    location: str = "Remote",
+    description: str = "Build and run our services.",
     status: PostingStatus = PostingStatus.DRAFT,
+    opened_at: datetime | None = None,
 ) -> Job:
     """A job with the given recruiters assigned. Open and closed jobs get their timestamps."""
     now = datetime.now(UTC)
@@ -82,11 +85,11 @@ def make_job(
         company_id=company.id,
         department_id=department.id,
         title=title,
-        location="Remote",
-        description="Build and run our services.",
+        location=location,
+        description=description,
         status=status,
         created_by=created_by.id,
-        opened_at=None if status == PostingStatus.DRAFT else now,
+        opened_at=None if status == PostingStatus.DRAFT else (opened_at or now),
         closed_at=now if status == PostingStatus.CLOSED else None,
     )
     db.add(job)

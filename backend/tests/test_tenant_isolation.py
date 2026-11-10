@@ -233,6 +233,10 @@ NOT_COMPANY_SCOPED = {
     "POST /api/invitations/accept": "public; the invitation is found by its secret token",
     "POST /api/invitations": "creates in the caller's own company; takes no foreign id "
     "(see test_inviting_does_not_disturb_another_companys_invitation)",
+    "GET /api/public/jobs": "public by design: lists only OPEN jobs of every company, a fixed "
+    "set of fields (see tests/test_public_jobs.py)",
+    "GET /api/public/jobs/{job_id}": "public by design: an id returns the job only if it is "
+    "OPEN, and the same 404 as for an unknown id otherwise (see tests/test_public_jobs.py)",
     "POST /api/jobs": "creates in the caller's own company; the department must be the caller's "
     "own (see test_a_department_of_another_company_unknown_or_archived_cannot_be_used)",
     "POST /api/departments": "creates in the caller's own company; the company comes from the "
@@ -255,11 +259,23 @@ def test_every_route_is_classified_for_isolation() -> None:
     assert classified - set(ROUTES) == set(), "the registry names route(s) that no longer exist"
 
 
+# Routes with an id in the path that may deliberately be read by anyone. Each has its own tests
+# that it exposes nothing but what is meant to be public.
+PUBLIC_ROUTES_WITH_ID = {"GET /api/public/jobs/{job_id}"}
+
+
 def test_a_route_with_a_path_id_must_have_an_id_case() -> None:
     # A path parameter is the classic way to ask for someone else's row.
-    with_ids = {key for key in ROUTES if "{" in key}
+    with_ids = {key for key in ROUTES if "{" in key} - PUBLIC_ROUTES_WITH_ID
 
     assert with_ids == {case.key for case in ID_CASES}
+
+
+def test_the_exemption_for_public_routes_with_an_id_is_only_for_public_routes() -> None:
+    from tests.test_route_matrix import POLICY
+
+    assert PUBLIC_ROUTES_WITH_ID <= set(ROUTES)
+    assert all(POLICY[key] is None for key in PUBLIC_ROUTES_WITH_ID)
 
 
 # ---- the attacks -------------------------------------------------------------------------

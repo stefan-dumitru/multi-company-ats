@@ -4,6 +4,7 @@ from datetime import datetime
 
 from sqlalchemy import (
     CheckConstraint,
+    Computed,
     DateTime,
     Enum,
     ForeignKey,
@@ -14,10 +15,18 @@ from sqlalchemy import (
     func,
     text,
 )
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import TSVECTOR, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db import Base
+
+# Postgres keeps this column up to date itself: the title counts for more (weight A) than the
+# description (weight B) when results are ranked. The language is spelled out so the expression
+# is immutable, which a generated column requires.
+SEARCH_VECTOR_SQL = (
+    "setweight(to_tsvector('english', coalesce(title, '')), 'A') || "
+    "setweight(to_tsvector('english', coalesce(description, '')), 'B')"
+)
 
 
 class PostingStatus(enum.StrEnum):
@@ -36,6 +45,8 @@ class Job(Base):
         CheckConstraint("version > 0", name="version_positive"),
         # The list screens filter a company's jobs by status.
         Index("ix_jobs_company_id_status", "company_id", "status"),
+        # Full-text search over open jobs (functional.md > Search).
+        Index("ix_jobs_search_vector", "search_vector", postgresql_using="gin"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(
@@ -67,6 +78,10 @@ class Job(Base):
     closed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     # Goes up on every change; an edit must quote the version it saw (optimistic locking).
     version: Mapped[int] = mapped_column(Integer, default=1, server_default=text("1"))
+    # Never set by the application; only matched against in the public search.
+    search_vector: Mapped[str] = mapped_column(
+        TSVECTOR, Computed(SEARCH_VECTOR_SQL, persisted=True), deferred=True
+    )
 
 
 class JobRecruiter(Base):
