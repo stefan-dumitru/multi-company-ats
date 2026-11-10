@@ -121,6 +121,12 @@ above.
   `description` 1 to 20000, all trimmed. Audit rows name the fields that changed, never the
   text. A draft or open job with no active recruiter is flagged `needs_reassignment`.
 - **Status change timestamps:** `opened_at`, `closed_at`.
+- **Search:** `search_vector` is a column Postgres keeps up to date itself (generated, stored),
+  built with the `english` configuration: the title has weight A and the description weight B,
+  so a title match ranks above a description match. A GIN index (`ix_jobs_search_vector`) backs
+  it. The public search reads it with `websearch_to_tsquery` (quoted phrases, `or` and a leading
+  `-` work; odd input never fails). The language is fixed to English; a multilingual company
+  would need another configuration and a migration.
 
 ### JobRecruiter — Master (assignment)
 
