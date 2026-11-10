@@ -6,7 +6,15 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.auth.passwords import hash_password
-from app.models import Company, Role, User
+from app.models import (
+    Company,
+    Department,
+    Job,
+    JobRecruiter,
+    PostingStatus,
+    Role,
+    User,
+)
 
 DEFAULT_PASSWORD = "correct horse battery"
 
@@ -49,3 +57,41 @@ def make_user(
     db.add(user)
     db.flush()
     return user
+
+
+def make_department(db: Session, company: Company, name: str = "Engineering") -> Department:
+    department = Department(company_id=company.id, name=name)
+    db.add(department)
+    db.flush()
+    return department
+
+
+def make_job(
+    db: Session,
+    *,
+    company: Company,
+    department: Department,
+    created_by: User,
+    recruiters: list[User] | None = None,
+    title: str = "Backend Engineer",
+    status: PostingStatus = PostingStatus.DRAFT,
+) -> Job:
+    """A job with the given recruiters assigned. Open and closed jobs get their timestamps."""
+    now = datetime.now(UTC)
+    job = Job(
+        company_id=company.id,
+        department_id=department.id,
+        title=title,
+        location="Remote",
+        description="Build and run our services.",
+        status=status,
+        created_by=created_by.id,
+        opened_at=None if status == PostingStatus.DRAFT else now,
+        closed_at=now if status == PostingStatus.CLOSED else None,
+    )
+    db.add(job)
+    db.flush()
+    for recruiter in recruiters or []:
+        db.add(JobRecruiter(job_id=job.id, user_id=recruiter.id, added_by=created_by.id))
+    db.flush()
+    return job

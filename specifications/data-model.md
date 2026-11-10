@@ -91,9 +91,8 @@ above.
   Archived departments cannot be picked for new jobs.
 - **Constraints / invariants:** `name` is 1 to 100 characters, trimmed, and unique per company
   ignoring case ("Sales" and "sales" clash; enforced by a unique index on `lower(name)`).
-  Departments can be renamed, archived and un-archived; each change is audited. Deleting one is
-  built together with `Job` (Phase 4, step 2), because only then can "jobs reference it" be
-  checked.
+  Departments can be renamed, archived and un-archived; each change is audited. One can be
+  deleted only while no job (of any status) has ever used it; otherwise it is archived.
 
 ### Job — Master
 
@@ -102,13 +101,25 @@ above.
   `status` (`draft` | `open` | `closed`), `created_by`, `created_at`, `opened_at`, `closed_at`,
   `search_vector` (generated `tsvector` over title + description), `version`.
 - **Relationships:** belongs to `Company`, `Department`; has many `JobRecruiter`, `Application`.
-- **Lifecycle:** Created by a recruiter (who is auto-assigned) in draft, then published (open),
-  then closed. Editable while draft or open. A draft with no applications may be deleted; any
-  other job is closed instead.
+- **Lifecycle:** Created by a recruiter (who is auto-assigned) or by an admin (who is not: an
+  admin adds recruiters afterwards), in draft, then published (open), then closed. Closed is
+  final: a closed job cannot be reopened or edited, and a new job is created instead. A draft
+  cannot be closed. Editable while draft or open. A draft with no applications may be deleted
+  (until `Application` exists in Phase 5, every draft qualifies); any other job is closed
+  instead. Repeating a transition that is already in effect changes nothing and writes no audit
+  row.
+- **Concurrency:** every change to a job first locks its row. `version` starts at 1 and goes up
+  on every edit, publish and close; each of these quotes the version the person saw and gets
+  409 `version_conflict` if it has moved. Assigning or removing a recruiter does not change the
+  version.
 - **Delete/cascade semantics:** Closing leaves in-flight applications untouched; only new
   applications are refused. A job with applications is never hard-deleted.
-- **Constraints / invariants:** `department_id` must belong to the same company. Only `open`
-  jobs appear in candidate search and accept applications.
+- **Constraints / invariants:** `department_id` must belong to the same company and, when set
+  or changed, must not be archived (a job may keep a department archived after it chose it).
+  Publishing needs at least one *active* assigned recruiter. Only `open` jobs appear in
+  candidate search and accept applications. `title` and `location` are 1 to 200 characters,
+  `description` 1 to 20000, all trimmed. Audit rows name the fields that changed, never the
+  text. A draft or open job with no active recruiter is flagged `needs_reassignment`.
 - **Status change timestamps:** `opened_at`, `closed_at`.
 
 ### JobRecruiter — Master (assignment)
@@ -116,9 +127,12 @@ above.
 - **Purpose:** The assignment table behind "a recruiter sees only the jobs assigned to them".
 - **Key fields:** `job_id`, `user_id`, `added_by`, `added_at`. Primary key (`job_id`, `user_id`).
 - **Relationships:** many-to-many between `Job` and `User` (role recruiter).
-- **Lifecycle:** The creating recruiter is added automatically. A company admin or an
-  already-assigned recruiter can add others. Removal allowed unless it would leave an open job
-  with no recruiter [TODO confirm].
+- **Lifecycle:** The creating recruiter is added automatically (an admin who creates a job is
+  not). A company admin or an already-assigned recruiter can add others. Removal is allowed
+  unless it would leave an *open* job with no active recruiter (409 `last_recruiter`); drafts
+  and closed jobs have no such limit, and removing a deactivated recruiter is always allowed.
+  A recruiter can remove themselves, and then no longer sees the job. Adding someone already
+  assigned, or removing someone not assigned, changes nothing.
 - **Delete/cascade semantics:** Rows are removed with an explicit unassign. A deactivated
   recruiter's rows remain and are flagged for reassignment.
 - **Constraints / invariants:** User must be an active recruiter in the job's company.

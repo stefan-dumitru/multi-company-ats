@@ -64,6 +64,16 @@ POLICY: dict[str, frozenset[Role] | None] = {
     "PATCH /api/departments/{department_id}": ADMIN_ONLY,
     "POST /api/departments/{department_id}/archive": ADMIN_ONLY,
     "POST /api/departments/{department_id}/unarchive": ADMIN_ONLY,
+    "DELETE /api/departments/{department_id}": ADMIN_ONLY,
+    "GET /api/jobs": ADMIN_AND_RECRUITER,
+    "POST /api/jobs": ADMIN_AND_RECRUITER,
+    "GET /api/jobs/{job_id}": ADMIN_AND_RECRUITER,
+    "PATCH /api/jobs/{job_id}": ADMIN_AND_RECRUITER,
+    "POST /api/jobs/{job_id}/publish": ADMIN_AND_RECRUITER,
+    "POST /api/jobs/{job_id}/close": ADMIN_AND_RECRUITER,
+    "DELETE /api/jobs/{job_id}": ADMIN_AND_RECRUITER,
+    "POST /api/jobs/{job_id}/recruiters": ADMIN_AND_RECRUITER,
+    "DELETE /api/jobs/{job_id}/recruiters/{user_id}": ADMIN_AND_RECRUITER,
 }
 
 

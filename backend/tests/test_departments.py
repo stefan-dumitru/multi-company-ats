@@ -7,7 +7,6 @@ are archived rather than deleted, every list is paginated, and a department of a
 
 import uuid
 from dataclasses import dataclass
-from datetime import UTC, datetime
 
 import pytest
 from fastapi.testclient import TestClient
@@ -15,9 +14,9 @@ from httpx import Response
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.auth.sessions import SESSION_COOKIE_NAME, create_session
-from app.models import AuditLog, Role, User
-from tests.factories import make_company, make_user
+from app.models import AuditLog, Company, Department, PostingStatus, Role, User
+from tests.browser import Browser
+from tests.factories import make_company, make_job, make_user
 
 NOT_FOUND = {"detail": "Not found."}
 DUPLICATE = {"detail": "A department with this name already exists."}
@@ -46,28 +45,7 @@ def world(db: Session) -> World:
     return built
 
 
-class Browser:
-    """The test client logged in as one user."""
-
-    def __init__(self, client: TestClient, db: Session, user: User) -> None:
-        token, session = create_session(db, user, datetime.now(UTC))
-        db.commit()
-        client.cookies.clear()
-        client.cookies.set(SESSION_COOKIE_NAME, token)
-        self.client = client
-        self.csrf = session.csrf_token
-
-    def get(self, path: str) -> Response:
-        return self.client.get(path)
-
-    def send(self, method: str, path: str, **kwargs: object) -> Response:
-        return self.client.request(
-            method,
-            path,
-            headers={"X-CSRF-Token": self.csrf},
-            **kwargs,  # type: ignore[arg-type]
-        )
-
+class DepartmentBrowser(Browser):
     def create(self, name: str) -> Response:
         return self.send("POST", "/api/departments", json={"name": name})
 
@@ -81,7 +59,7 @@ def audit_actions(db: Session) -> list[str]:
 
 
 def test_an_admin_creates_a_department(client: TestClient, db: Session, world: World) -> None:
-    admin = Browser(client, db, world.acme_admin)
+    admin = DepartmentBrowser(client, db, world.acme_admin)
 
     response = admin.create("Engineering")
 
@@ -93,7 +71,7 @@ def test_an_admin_creates_a_department(client: TestClient, db: Session, world: W
 
 
 def test_the_name_is_trimmed(client: TestClient, db: Session, world: World) -> None:
-    admin = Browser(client, db, world.acme_admin)
+    admin = DepartmentBrowser(client, db, world.acme_admin)
 
     assert admin.create("   Sales  ").json()["name"] == "Sales"
 
@@ -102,14 +80,14 @@ def test_the_name_is_trimmed(client: TestClient, db: Session, world: World) -> N
 def test_a_missing_or_overlong_name_is_refused(
     client: TestClient, db: Session, world: World, bad_name: str
 ) -> None:
-    admin = Browser(client, db, world.acme_admin)
+    admin = DepartmentBrowser(client, db, world.acme_admin)
 
     assert admin.create(bad_name).status_code == 422
     assert audit_actions(db) == []
 
 
 def test_unknown_fields_are_refused(client: TestClient, db: Session, world: World) -> None:
-    admin = Browser(client, db, world.acme_admin)
+    admin = DepartmentBrowser(client, db, world.acme_admin)
 
     # A company id in the body must never be trusted, or silently ignored.
     response = admin.send(
@@ -123,7 +101,7 @@ def test_unknown_fields_are_refused(client: TestClient, db: Session, world: Worl
 def test_a_name_is_unique_within_a_company_ignoring_case(
     client: TestClient, db: Session, world: World, second_name: str
 ) -> None:
-    admin = Browser(client, db, world.acme_admin)
+    admin = DepartmentBrowser(client, db, world.acme_admin)
     admin.create("Engineering")
 
     response = admin.create(second_name)
@@ -134,15 +112,17 @@ def test_a_name_is_unique_within_a_company_ignoring_case(
 
 
 def test_two_companies_may_use_the_same_name(client: TestClient, db: Session, world: World) -> None:
-    Browser(client, db, world.acme_admin).create("Engineering")
+    DepartmentBrowser(client, db, world.acme_admin).create("Engineering")
 
-    assert Browser(client, db, world.globex_admin).create("Engineering").status_code == 201
+    assert (
+        DepartmentBrowser(client, db, world.globex_admin).create("Engineering").status_code == 201
+    )
 
 
 def test_a_recruiter_cannot_create_a_department(
     client: TestClient, db: Session, world: World
 ) -> None:
-    recruiter = Browser(client, db, world.acme_recruiter)
+    recruiter = DepartmentBrowser(client, db, world.acme_recruiter)
 
     assert recruiter.create("Marketing").status_code == 403
     assert audit_actions(db) == []
@@ -154,13 +134,13 @@ def test_a_recruiter_cannot_create_a_department(
 def test_staff_see_their_companys_departments_in_name_order(
     client: TestClient, db: Session, world: World
 ) -> None:
-    admin = Browser(client, db, world.acme_admin)
+    admin = DepartmentBrowser(client, db, world.acme_admin)
     for name in ["Sales", "engineering", "Operations"]:
         admin.create(name)
-    Browser(client, db, world.globex_admin).create("Globex only")
+    DepartmentBrowser(client, db, world.globex_admin).create("Globex only")
 
     for user in (world.acme_admin, world.acme_recruiter):
-        response = Browser(client, db, user).get("/api/departments")
+        response = DepartmentBrowser(client, db, user).get("/api/departments")
 
         assert response.status_code == 200
         body = response.json()
@@ -171,17 +151,20 @@ def test_staff_see_their_companys_departments_in_name_order(
 def test_an_interviewer_cannot_list_departments(
     client: TestClient, db: Session, world: World
 ) -> None:
-    assert Browser(client, db, world.acme_interviewer).get("/api/departments").status_code == 403
+    assert (
+        DepartmentBrowser(client, db, world.acme_interviewer).get("/api/departments").status_code
+        == 403
+    )
 
 
 def test_an_empty_company_gets_an_empty_page(client: TestClient, db: Session, world: World) -> None:
-    response = Browser(client, db, world.acme_admin).get("/api/departments")
+    response = DepartmentBrowser(client, db, world.acme_admin).get("/api/departments")
 
     assert response.json() == {"items": [], "total": 0, "page": 1, "page_size": 20}
 
 
 def test_lists_are_paginated(client: TestClient, db: Session, world: World) -> None:
-    admin = Browser(client, db, world.acme_admin)
+    admin = DepartmentBrowser(client, db, world.acme_admin)
     for number in range(5):
         admin.create(f"Dept {number}")
 
@@ -200,12 +183,17 @@ def test_lists_are_paginated(client: TestClient, db: Session, world: World) -> N
 def test_silly_page_numbers_are_refused(
     client: TestClient, db: Session, world: World, query: str
 ) -> None:
-    assert Browser(client, db, world.acme_admin).get(f"/api/departments?{query}").status_code == 422
+    assert (
+        DepartmentBrowser(client, db, world.acme_admin).get(f"/api/departments?{query}").status_code
+        == 422
+    )
 
 
 def test_the_largest_allowed_page_size_works(client: TestClient, db: Session, world: World) -> None:
     assert (
-        Browser(client, db, world.acme_admin).get("/api/departments?page_size=100").status_code
+        DepartmentBrowser(client, db, world.acme_admin)
+        .get("/api/departments?page_size=100")
+        .status_code
         == 200
     )
 
@@ -214,7 +202,7 @@ def test_the_largest_allowed_page_size_works(client: TestClient, db: Session, wo
 
 
 def test_an_admin_renames_a_department(client: TestClient, db: Session, world: World) -> None:
-    admin = Browser(client, db, world.acme_admin)
+    admin = DepartmentBrowser(client, db, world.acme_admin)
     department_id = admin.create("Eng").json()["id"]
 
     response = admin.send("PATCH", f"/api/departments/{department_id}", json={"name": "Platform"})
@@ -228,7 +216,7 @@ def test_changing_only_the_capitalisation_is_allowed(
     client: TestClient, db: Session, world: World
 ) -> None:
     # The new name equals the old one ignoring case, but it is the same department, not a clash.
-    admin = Browser(client, db, world.acme_admin)
+    admin = DepartmentBrowser(client, db, world.acme_admin)
     department_id = admin.create("engineering").json()["id"]
 
     response = admin.send(
@@ -242,7 +230,7 @@ def test_changing_only_the_capitalisation_is_allowed(
 def test_renaming_to_another_departments_name_is_a_conflict(
     client: TestClient, db: Session, world: World
 ) -> None:
-    admin = Browser(client, db, world.acme_admin)
+    admin = DepartmentBrowser(client, db, world.acme_admin)
     admin.create("Sales")
     department_id = admin.create("Ops").json()["id"]
 
@@ -256,7 +244,7 @@ def test_renaming_to_another_departments_name_is_a_conflict(
 def test_renaming_to_the_same_name_changes_nothing_and_is_not_audited(
     client: TestClient, db: Session, world: World
 ) -> None:
-    admin = Browser(client, db, world.acme_admin)
+    admin = DepartmentBrowser(client, db, world.acme_admin)
     department_id = admin.create("Sales").json()["id"]
 
     response = admin.send("PATCH", f"/api/departments/{department_id}", json={"name": "Sales"})
@@ -266,8 +254,8 @@ def test_renaming_to_the_same_name_changes_nothing_and_is_not_audited(
 
 
 def test_a_recruiter_cannot_rename(client: TestClient, db: Session, world: World) -> None:
-    department_id = Browser(client, db, world.acme_admin).create("Sales").json()["id"]
-    recruiter = Browser(client, db, world.acme_recruiter)
+    department_id = DepartmentBrowser(client, db, world.acme_admin).create("Sales").json()["id"]
+    recruiter = DepartmentBrowser(client, db, world.acme_recruiter)
 
     response = recruiter.send("PATCH", f"/api/departments/{department_id}", json={"name": "X"})
 
@@ -280,7 +268,7 @@ def test_a_recruiter_cannot_rename(client: TestClient, db: Session, world: World
 def test_archiving_hides_a_department_unless_asked_for(
     client: TestClient, db: Session, world: World
 ) -> None:
-    admin = Browser(client, db, world.acme_admin)
+    admin = DepartmentBrowser(client, db, world.acme_admin)
     department_id = admin.create("Old team").json()["id"]
     admin.create("Current team")
 
@@ -295,7 +283,7 @@ def test_archiving_hides_a_department_unless_asked_for(
 
 
 def test_a_department_can_be_brought_back(client: TestClient, db: Session, world: World) -> None:
-    admin = Browser(client, db, world.acme_admin)
+    admin = DepartmentBrowser(client, db, world.acme_admin)
     department_id = admin.create("Old team").json()["id"]
     admin.send("POST", f"/api/departments/{department_id}/archive")
 
@@ -309,7 +297,7 @@ def test_a_department_can_be_brought_back(client: TestClient, db: Session, world
 def test_repeating_an_archive_changes_nothing_and_writes_no_audit_row(
     client: TestClient, db: Session, world: World
 ) -> None:
-    admin = Browser(client, db, world.acme_admin)
+    admin = DepartmentBrowser(client, db, world.acme_admin)
     department_id = admin.create("Old team").json()["id"]
     admin.send("POST", f"/api/departments/{department_id}/archive")
 
@@ -324,8 +312,8 @@ def test_repeating_an_archive_changes_nothing_and_writes_no_audit_row(
 
 
 def test_a_recruiter_cannot_archive(client: TestClient, db: Session, world: World) -> None:
-    department_id = Browser(client, db, world.acme_admin).create("Sales").json()["id"]
-    recruiter = Browser(client, db, world.acme_recruiter)
+    department_id = DepartmentBrowser(client, db, world.acme_admin).create("Sales").json()["id"]
+    recruiter = DepartmentBrowser(client, db, world.acme_recruiter)
 
     assert recruiter.send("POST", f"/api/departments/{department_id}/archive").status_code == 403
 
@@ -344,8 +332,10 @@ def test_a_recruiter_cannot_archive(client: TestClient, db: Session, world: Worl
 def test_another_companys_department_is_not_found(
     client: TestClient, db: Session, world: World, method: str, suffix: str, body: object
 ) -> None:
-    foreign_id = Browser(client, db, world.globex_admin).create("Globex dept").json()["id"]
-    admin = Browser(client, db, world.acme_admin)
+    foreign_id = (
+        DepartmentBrowser(client, db, world.globex_admin).create("Globex dept").json()["id"]
+    )
+    admin = DepartmentBrowser(client, db, world.acme_admin)
 
     response = admin.send(method, f"/api/departments/{foreign_id}{suffix}", json=body)
 
@@ -354,3 +344,55 @@ def test_another_companys_department_is_not_found(
     unknown = admin.send(method, f"/api/departments/{uuid.uuid4()}{suffix}", json=body)
     assert unknown.json() == response.json()  # indistinguishable from an id that never existed
     assert audit_actions(db) == ["department.created"]  # only Globex's own creation
+
+
+# ---- deleting ----------------------------------------------------------------------------
+
+
+def test_an_unused_department_can_be_deleted(client: TestClient, db: Session, world: World) -> None:
+    admin = DepartmentBrowser(client, db, world.acme_admin)
+    department_id = admin.create("Typo dept").json()["id"]
+
+    response = admin.send("DELETE", f"/api/departments/{department_id}")
+
+    assert response.status_code == 204
+    assert admin.get("/api/departments?include_archived=true").json()["total"] == 0
+    assert audit_actions(db) == ["department.created", "department.deleted"]
+
+
+@pytest.mark.parametrize("job_status", list(PostingStatus))
+def test_a_department_with_jobs_cannot_be_deleted_whatever_their_status(
+    client: TestClient, db: Session, world: World, job_status: PostingStatus
+) -> None:
+    admin = DepartmentBrowser(client, db, world.acme_admin)
+    department_id = admin.create("In use").json()["id"]
+    company = db.get(Company, world.acme_admin.company_id)
+    department = db.get(Department, uuid.UUID(department_id))
+    assert company is not None and department is not None
+    make_job(
+        db, company=company, department=department, created_by=world.acme_admin, status=job_status
+    )
+    db.commit()
+
+    response = admin.send("DELETE", f"/api/departments/{department_id}")
+
+    assert response.status_code == 409
+    assert response.json()["code"] == "department_in_use"
+    assert admin.get("/api/departments").json()["total"] == 1
+    assert audit_actions(db) == ["department.created"]
+
+
+def test_only_an_admin_can_delete_and_only_in_their_own_company(
+    client: TestClient, db: Session, world: World
+) -> None:
+    department_id = DepartmentBrowser(client, db, world.acme_admin).create("Sales").json()["id"]
+
+    as_recruiter = DepartmentBrowser(client, db, world.acme_recruiter)
+    assert as_recruiter.send("DELETE", f"/api/departments/{department_id}").status_code == 403
+    as_other_admin = DepartmentBrowser(client, db, world.globex_admin)
+    foreign = as_other_admin.send("DELETE", f"/api/departments/{department_id}")
+    unknown = as_other_admin.send("DELETE", f"/api/departments/{uuid.uuid4()}")
+
+    assert foreign.status_code == 404 and foreign.json() == unknown.json() == NOT_FOUND
+    admin = DepartmentBrowser(client, db, world.acme_admin)
+    assert admin.get("/api/departments").json()["total"] == 1

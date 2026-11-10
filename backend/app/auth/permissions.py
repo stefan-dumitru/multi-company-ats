@@ -26,6 +26,9 @@ class Permission(enum.StrEnum):
     VIEW_DEPARTMENTS = "view_departments"
     # Create, rename and archive departments. Admins only.
     MANAGE_DEPARTMENTS = "manage_departments"
+    # Create, edit, publish and close jobs, and assign recruiters. Admins and recruiters; a
+    # recruiter only reaches the jobs assigned to them (the service enforces that).
+    MANAGE_JOBS = "manage_jobs"
 
 
 # A role that is missing from this table, or a permission missing from a role's set, means
@@ -37,9 +40,12 @@ ROLE_PERMISSIONS: dict[Role, frozenset[Permission]] = {
             Permission.MANAGE_USERS,
             Permission.VIEW_DEPARTMENTS,
             Permission.MANAGE_DEPARTMENTS,
+            Permission.MANAGE_JOBS,
         }
     ),
-    Role.RECRUITER: frozenset({Permission.ACCOUNT_SELF, Permission.VIEW_DEPARTMENTS}),
+    Role.RECRUITER: frozenset(
+        {Permission.ACCOUNT_SELF, Permission.VIEW_DEPARTMENTS, Permission.MANAGE_JOBS}
+    ),
     Role.INTERVIEWER: frozenset({Permission.ACCOUNT_SELF}),
     Role.CANDIDATE: frozenset({Permission.ACCOUNT_SELF}),
 }

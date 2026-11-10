@@ -5,6 +5,7 @@ from app.models.background_job import BackgroundJob, JobStatus
 from app.models.company import Company
 from app.models.department import Department
 from app.models.invitation import Invitation
+from app.models.job import Job, JobRecruiter, PostingStatus
 from app.models.login_attempt import LoginAttempt
 from app.models.session import UserSession
 from app.models.user import STAFF_ROLES, Role, User
@@ -18,8 +19,11 @@ __all__ = [
     "Company",
     "Department",
     "Invitation",
+    "Job",
+    "JobRecruiter",
     "JobStatus",
     "LoginAttempt",
+    "PostingStatus",
     "Role",
     "User",
     "UserSession",
