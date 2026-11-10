@@ -13,10 +13,12 @@ export function navItemsFor(role: Role): NavItem[] {
   switch (role) {
     case 'company_admin':
       return [
+        { label: 'Jobs', to: '/manage/jobs' },
         { label: 'Users', to: '/users' },
         { label: 'Departments', to: '/departments' },
       ]
     case 'recruiter':
+      return [{ label: 'My jobs', to: '/manage/jobs' }]
     case 'interviewer':
     case 'candidate':
       // Their pages arrive with the phases that build jobs, interviews and applications.

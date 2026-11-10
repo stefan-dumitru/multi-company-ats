@@ -5,7 +5,9 @@ import AcceptInvitationPage from '@/pages/AcceptInvitationPage'
 import DepartmentsPage from '@/pages/DepartmentsPage'
 import ForgotPasswordPage from '@/pages/ForgotPasswordPage'
 import HomePage from '@/pages/HomePage'
+import JobsPage from '@/pages/JobsPage'
 import LoginPage from '@/pages/LoginPage'
+import NewJobPage from '@/pages/NewJobPage'
 import NotFoundPage from '@/pages/NotFoundPage'
 import RegisterCompanyPage from '@/pages/RegisterCompanyPage'
 import ResetPasswordPage from '@/pages/ResetPasswordPage'
@@ -24,6 +26,10 @@ export default function App() {
         <Route path="forgot-password" element={<ForgotPasswordPage />} />
         <Route path="reset-password" element={<ResetPasswordPage />} />
         <Route element={<RequireAuth />}>
+          <Route element={<RequireRole roles={['company_admin', 'recruiter']} />}>
+            <Route path="manage/jobs" element={<JobsPage />} />
+            <Route path="manage/jobs/new" element={<NewJobPage />} />
+          </Route>
           <Route element={<RequireRole roles={['company_admin']} />}>
             <Route path="users" element={<UsersPage />} />
             <Route path="departments" element={<DepartmentsPage />} />

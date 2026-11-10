@@ -8,6 +8,8 @@ interface FormFieldProps {
   onChange: (value: string) => void
   type?: string
   autoComplete?: string
+  /** A convenience for the typist; the server enforces the real limit. */
+  maxLength?: number
   /** Help shown under the field and read out by screen readers with it. */
   hint?: string
 }
@@ -20,6 +22,7 @@ export default function FormField({
   onChange,
   type = 'text',
   autoComplete,
+  maxLength,
   hint,
 }: FormFieldProps) {
   const hintId = hint ? `${id}-hint` : undefined
@@ -32,6 +35,7 @@ export default function FormField({
         value={value}
         onChange={(event) => onChange(event.target.value)}
         autoComplete={autoComplete}
+        maxLength={maxLength}
         aria-describedby={hintId}
         required
       />
