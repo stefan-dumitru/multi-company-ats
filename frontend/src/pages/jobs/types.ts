@@ -28,3 +28,28 @@ export interface DepartmentChoice {
   name: string
   is_archived: boolean
 }
+
+/** A recruiter, on a job or in the list to pick from. */
+export interface Recruiter {
+  id: string
+  full_name: string
+  email: string
+  is_active: boolean
+}
+
+/** One job in full, as its page shows it. */
+export interface JobDetail {
+  id: string
+  title: string
+  location: string
+  description: string
+  status: JobStatus
+  department: DepartmentChoice
+  created_at: string
+  opened_at: string | null
+  closed_at: string | null
+  /** Quoted back by every change, so a change made on an out-of-date page is refused. */
+  version: number
+  needs_reassignment: boolean
+  recruiters: Recruiter[]
+}

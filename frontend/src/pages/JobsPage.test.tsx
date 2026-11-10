@@ -128,6 +128,16 @@ describe('JobsPage', () => {
     expect(rowOf('Old role').getByText('Closed')).toBeInTheDocument()
   })
 
+  it("links each title to the job's own page", async () => {
+    startServer([job('j1', 'Backend Engineer')])
+    renderApp('/manage/jobs')
+    await screen.findByRole('table', { name: /jobs/i })
+
+    expect(
+      rowOf('Backend Engineer').getByRole('link', { name: 'Backend Engineer' }),
+    ).toHaveAttribute('href', '/manage/jobs/j1')
+  })
+
   it('flags a job that has no active recruiter', async () => {
     startServer([job('j1', 'Covered'), job('j2', 'Orphaned', { needs_reassignment: true })])
     renderApp('/manage/jobs')
