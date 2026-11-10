@@ -9,6 +9,8 @@ import JobDetailPage from '@/pages/JobDetailPage'
 import JobsPage from '@/pages/JobsPage'
 import LoginPage from '@/pages/LoginPage'
 import NewJobPage from '@/pages/NewJobPage'
+import PublicJobPage from '@/pages/PublicJobPage'
+import PublicJobsPage from '@/pages/PublicJobsPage'
 import NotFoundPage from '@/pages/NotFoundPage'
 import RegisterCompanyPage from '@/pages/RegisterCompanyPage'
 import ResetPasswordPage from '@/pages/ResetPasswordPage'
@@ -26,6 +28,8 @@ export default function App() {
         <Route path="verify-email" element={<VerifyEmailPage />} />
         <Route path="forgot-password" element={<ForgotPasswordPage />} />
         <Route path="reset-password" element={<ResetPasswordPage />} />
+        <Route path="jobs" element={<PublicJobsPage />} />
+        <Route path="jobs/:jobId" element={<PublicJobPage />} />
         <Route element={<RequireAuth />}>
           <Route element={<RequireRole roles={['company_admin', 'recruiter']} />}>
             <Route path="manage/jobs" element={<JobsPage />} />

@@ -44,6 +44,11 @@ export default function HomePage() {
           .
         </p>
       )}
+      <p>
+        <Link to="/jobs" className="text-primary underline underline-offset-4">
+          Browse open jobs
+        </Link>
+      </p>
       <HealthStatus />
     </section>
   )

@@ -48,6 +48,9 @@ export default function Layout() {
           )}
           {state.status === 'anonymous' && (
             <nav aria-label="Account" className="ml-auto flex items-center gap-4 text-sm">
+              <Link to="/jobs" className="underline-offset-4 hover:underline">
+                Find jobs
+              </Link>
               <Link to="/login" className="underline-offset-4 hover:underline">
                 Log in
               </Link>
