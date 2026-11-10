@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 
 from app.auth.sessions import revoke_all_sessions
 from app.models import Company, Role, User
+from app.pagination import PageRequest
 from app.services.audit import record_audit
 from app.services.errors import LastAdminError, NotFoundError
 
@@ -139,3 +140,26 @@ def reactivate_user(db: Session, current_user: User, user_id: uuid.UUID, now: da
     )
     db.flush()
     return user
+
+
+def list_company_recruiters(
+    db: Session, current_user: User, page: PageRequest
+) -> tuple[list[User], int]:
+    """One page of the company's active recruiters by name: who can be put on a job."""
+    if current_user.company_id is None:
+        return [], 0
+    wanted = [
+        User.company_id == current_user.company_id,
+        User.role == Role.RECRUITER,
+        User.is_active.is_(True),
+    ]
+    total = db.scalar(select(func.count()).select_from(User).where(*wanted)) or 0
+    rows = db.scalars(
+        select(User)
+        .where(*wanted)
+        # The id breaks ties, so a page never repeats or skips a row between requests.
+        .order_by(func.lower(User.full_name), User.id)
+        .limit(page.page_size)
+        .offset(page.offset)
+    )
+    return list(rows), total

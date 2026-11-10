@@ -67,6 +67,7 @@ POLICY: dict[str, frozenset[Role] | None] = {
     "DELETE /api/departments/{department_id}": ADMIN_ONLY,
     "GET /api/public/jobs": None,
     "GET /api/public/jobs/{job_id}": None,
+    "GET /api/recruiters": ADMIN_AND_RECRUITER,
     "GET /api/jobs": ADMIN_AND_RECRUITER,
     "POST /api/jobs": ADMIN_AND_RECRUITER,
     "GET /api/jobs/{job_id}": ADMIN_AND_RECRUITER,
