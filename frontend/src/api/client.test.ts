@@ -168,3 +168,46 @@ describe('api client', () => {
     expect(messageOf('a string')).toBe('Something went wrong. Please try again.')
   })
 })
+
+describe('api client: error codes', () => {
+  beforeEach(() => {
+    setCsrfToken(null)
+    setUnauthorizedHandler(null)
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('keeps the code the server sends with a refusal, so a screen can react to it', async () => {
+    stubFetch({
+      'POST /api/jobs/1/publish': {
+        status: 409,
+        body: { detail: 'Changed by someone else.', code: 'version_conflict' },
+      },
+    })
+
+    await expect(api('/api/jobs/1/publish', { method: 'POST' })).rejects.toMatchObject({
+      status: 409,
+      message: 'Changed by someone else.',
+      code: 'version_conflict',
+    })
+  })
+
+  it('has no code when the server sends none', async () => {
+    stubFetch({ 'GET /api/things': { status: 404, body: { detail: 'Not found.' } } })
+
+    const failure = await api('/api/things').catch((error: unknown) => error)
+
+    expect(failure).toBeInstanceOf(ApiError)
+    expect((failure as ApiError).code).toBeUndefined()
+  })
+
+  it('ignores a code that is not text', async () => {
+    stubFetch({ 'GET /api/things': { status: 409, body: { detail: 'No.', code: { x: 1 } } } })
+
+    const failure = await api('/api/things').catch((error: unknown) => error)
+
+    expect((failure as ApiError).code).toBeUndefined()
+  })
+})

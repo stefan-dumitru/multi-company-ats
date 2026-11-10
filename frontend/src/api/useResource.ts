@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { api, messageOf } from './client'
+import { api, ApiError, messageOf } from './client'
 
 /**
  * Loads one thing from the API (a GET) and lets the page load it again after a change.
@@ -10,6 +10,8 @@ import { api, messageOf } from './client'
 export function useResource<T>(path: string) {
   const [data, setData] = useState<T | null>(null)
   const [error, setError] = useState('')
+  // True when the server answered 404: the thing does not exist, or is not the user's to see.
+  const [notFound, setNotFound] = useState(false)
   const [loading, setLoading] = useState(true)
   // Counts requests; an answer is used only if no newer request has been started since.
   const newestRequest = useRef(0)
@@ -21,11 +23,13 @@ export function useResource<T>(path: string) {
         if (mine !== newestRequest.current) return
         setData(answer)
         setError('')
+        setNotFound(false)
         setLoading(false)
       })
       .catch((failure) => {
         if (mine !== newestRequest.current) return
         setError(messageOf(failure))
+        setNotFound(failure instanceof ApiError && failure.status === 404)
         setLoading(false)
       })
   }, [path])
@@ -40,5 +44,5 @@ export function useResource<T>(path: string) {
     return ignoreAnswersInFlight
   }, [reload, ignoreAnswersInFlight])
 
-  return { data, error, loading, reload }
+  return { data, error, loading, notFound, reload }
 }

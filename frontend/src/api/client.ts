@@ -2,12 +2,15 @@
 
 export class ApiError extends Error {
   readonly status: number
+  /** A short machine-readable reason some refusals carry, e.g. "version_conflict". */
+  readonly code: string | undefined
 
-  constructor(status: number, message: string) {
+  constructor(status: number, message: string, code?: string) {
     super(message)
     this.name = 'ApiError'
     // Status 0 means the request never got an answer (server down, no network).
     this.status = status
+    this.code = code
   }
 }
 
@@ -41,23 +44,24 @@ interface RequestOptions {
   expectUnauthorized?: boolean
 }
 
-async function errorMessage(response: Response): Promise<string> {
+async function errorDetails(response: Response): Promise<{ message: string; code?: string }> {
   // Never show server error text for a 5xx: it can contain internals.
   if (response.status >= 500) {
-    return GENERIC_ERROR
+    return { message: GENERIC_ERROR }
   }
   try {
     const body = await response.json()
+    const code = typeof body.code === 'string' ? body.code : undefined
     if (typeof body.detail === 'string') {
-      return body.detail
+      return { message: body.detail, code }
     }
     if (Array.isArray(body.detail)) {
-      return INVALID_VALUES
+      return { message: INVALID_VALUES }
     }
   } catch {
     // Not JSON, for example an error page from a proxy: fall through to the generic message.
   }
-  return GENERIC_ERROR
+  return { message: GENERIC_ERROR }
 }
 
 export async function api<T = void>(path: string, options: RequestOptions = {}): Promise<T> {
@@ -86,7 +90,8 @@ export async function api<T = void>(path: string, options: RequestOptions = {}):
     onUnauthorized?.()
   }
   if (!response.ok) {
-    throw new ApiError(response.status, await errorMessage(response))
+    const { message, code } = await errorDetails(response)
+    throw new ApiError(response.status, message, code)
   }
   if (response.status === 204) {
     return undefined as T
