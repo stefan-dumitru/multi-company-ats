@@ -18,7 +18,7 @@ from app.config import get_secret_key, get_static_dir
 from app.db import get_db
 from app.error_handlers import add_error_handlers
 from app.frontend import mount_frontend
-from app.routers import auth, companies, invitations, users
+from app.routers import auth, companies, departments, invitations, users
 from app.worker.heartbeat import worker_is_alive
 from app.worker.status import recent_failure_count
 
@@ -39,6 +39,7 @@ app = FastAPI(title="ATS", lifespan=lifespan)
 add_error_handlers(app)
 app.include_router(auth.router)
 app.include_router(companies.router)
+app.include_router(departments.router)
 app.include_router(invitations.router)
 app.include_router(users.router)
 

@@ -22,7 +22,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.auth.sessions import SESSION_COOKIE_NAME, create_session
-from app.models import AuditLog, Invitation, Role, User
+from app.models import AuditLog, Department, Invitation, Role, User
 from tests.factories import make_company, make_user
 from tests.test_route_matrix import ROUTES
 
@@ -39,6 +39,7 @@ class Tenant:
     recruiter: User
     interviewer: User
     invitation: Invitation
+    department: Department
 
 
 def build_tenant(db: Session, name: str) -> Tenant:
@@ -55,9 +56,10 @@ def build_tenant(db: Session, name: str) -> Tenant:
         invited_by=admin.id,
         expires_at=datetime.now(UTC) + timedelta(days=7),
     )
-    db.add(invitation)
+    department = Department(company_id=company.id, name=f"Engineering of {name}")
+    db.add_all([invitation, department])
     db.flush()
-    return Tenant(name, company.id, admin, recruiter, interviewer, invitation)
+    return Tenant(name, company.id, admin, recruiter, interviewer, invitation, department)
 
 
 @pytest.fixture
@@ -85,7 +87,7 @@ class IdCase:
 
     key: str
     # Which row of a tenant the id comes from, and the body (if any) that makes it a valid request.
-    target: Callable[[Tenant], User]
+    target: Callable[[Tenant], Any]
     json: dict[str, Any] | None = None
     path_param: str = "user_id"
 
@@ -94,6 +96,22 @@ ID_CASES = [
     IdCase("PATCH /api/users/{user_id}/role", lambda t: t.recruiter, {"role": "interviewer"}),
     IdCase("POST /api/users/{user_id}/deactivate", lambda t: t.recruiter),
     IdCase("POST /api/users/{user_id}/reactivate", lambda t: t.recruiter),
+    IdCase(
+        "PATCH /api/departments/{department_id}",
+        lambda t: t.department,
+        {"name": "Renamed"},
+        path_param="department_id",
+    ),
+    IdCase(
+        "POST /api/departments/{department_id}/archive",
+        lambda t: t.department,
+        path_param="department_id",
+    ),
+    IdCase(
+        "POST /api/departments/{department_id}/unarchive",
+        lambda t: t.department,
+        path_param="department_id",
+    ),
 ]
 
 
@@ -117,6 +135,11 @@ LIST_CASES = [
         lambda body: {invitation["id"] for invitation in body},
         lambda t: {str(t.invitation.id)},
     ),
+    ListCase(
+        "GET /api/departments",
+        lambda body: {department["id"] for department in body["items"]},
+        lambda t: {str(t.department.id)},
+    ),
 ]
 
 # Routes that need no isolation case, and why. Adding a route here is a decision a reviewer sees.
@@ -136,6 +159,8 @@ NOT_COMPANY_SCOPED = {
     "POST /api/invitations/accept": "public; the invitation is found by its secret token",
     "POST /api/invitations": "creates in the caller's own company; takes no foreign id "
     "(see test_inviting_does_not_disturb_another_companys_invitation)",
+    "POST /api/departments": "creates in the caller's own company; the company comes from the "
+    "session and a company id in the body is refused (see test_unknown_fields_are_refused)",
 }
 
 
@@ -164,10 +189,10 @@ def test_a_route_with_a_path_id_must_have_an_id_case() -> None:
 # ---- the attacks -------------------------------------------------------------------------
 
 
-def send(client: TestClient, key: str, user_id: uuid.UUID, csrf: str, body: Any) -> Any:
-    method, template = key.split(" ", 1)
-    path = template.replace("{user_id}", str(user_id))
-    return client.request(method, path, headers={"X-CSRF-Token": csrf}, json=body)
+def send(client: TestClient, case: IdCase, row_id: uuid.UUID, csrf: str) -> Any:
+    method, template = case.key.split(" ", 1)
+    path = template.replace("{" + case.path_param + "}", str(row_id))
+    return client.request(method, path, headers={"X-CSRF-Token": csrf}, json=case.json)
 
 
 @pytest.mark.parametrize("case", ID_CASES, ids=lambda case: case.key)
@@ -177,7 +202,7 @@ def test_company_a_cannot_reach_company_bs_rows_by_id(
     a, b = world
     csrf = act_as_admin_of(client, db, a)
 
-    response = send(client, case.key, case.target(b).id, csrf, case.json)
+    response = send(client, case, case.target(b).id, csrf)
 
     assert response.status_code == 404
     assert response.json() == NOT_FOUND  # the same body as for an id that does not exist at all
@@ -191,7 +216,7 @@ def test_the_same_request_works_on_the_callers_own_company(
     a, _ = world
     csrf = act_as_admin_of(client, db, a)
 
-    response = send(client, case.key, case.target(a).id, csrf, case.json)
+    response = send(client, case, case.target(a).id, csrf)
 
     assert response.status_code == 200
 
@@ -203,13 +228,17 @@ def test_the_attacks_left_company_b_untouched(
     csrf = act_as_admin_of(client, db, a)
 
     for case in ID_CASES:
-        send(client, case.key, case.target(b).id, csrf, case.json)
+        send(client, case, case.target(b).id, csrf)
 
     db.expire_all()
     for member in (b.admin, b.recruiter, b.interviewer):
         stored = db.get(User, member.id)
         assert stored is not None
         assert stored.role == member.role and stored.is_active and stored.deactivated_at is None
+    stored_department = db.get(Department, b.department.id)
+    assert stored_department is not None
+    assert stored_department.name == f"Engineering of {b.name}"
+    assert stored_department.is_archived is False
     audit_for_b = db.scalars(select(AuditLog).where(AuditLog.company_id == b.company_id)).all()
     assert audit_for_b == []
 

@@ -22,13 +22,24 @@ class Permission(enum.StrEnum):
     # Use your own session: see who you are, log out. Every logged-in user has it.
     ACCOUNT_SELF = "account_self"
     MANAGE_USERS = "manage_users"
+    # Pick a department when writing a job. Admins and recruiters.
+    VIEW_DEPARTMENTS = "view_departments"
+    # Create, rename and archive departments. Admins only.
+    MANAGE_DEPARTMENTS = "manage_departments"
 
 
 # A role that is missing from this table, or a permission missing from a role's set, means
 # "denied". Nothing is allowed unless it is written down here.
 ROLE_PERMISSIONS: dict[Role, frozenset[Permission]] = {
-    Role.COMPANY_ADMIN: frozenset({Permission.ACCOUNT_SELF, Permission.MANAGE_USERS}),
-    Role.RECRUITER: frozenset({Permission.ACCOUNT_SELF}),
+    Role.COMPANY_ADMIN: frozenset(
+        {
+            Permission.ACCOUNT_SELF,
+            Permission.MANAGE_USERS,
+            Permission.VIEW_DEPARTMENTS,
+            Permission.MANAGE_DEPARTMENTS,
+        }
+    ),
+    Role.RECRUITER: frozenset({Permission.ACCOUNT_SELF, Permission.VIEW_DEPARTMENTS}),
     Role.INTERVIEWER: frozenset({Permission.ACCOUNT_SELF}),
     Role.CANDIDATE: frozenset({Permission.ACCOUNT_SELF}),
 }
