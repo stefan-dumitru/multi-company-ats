@@ -12,7 +12,10 @@ export interface NavItem {
 export function navItemsFor(role: Role): NavItem[] {
   switch (role) {
     case 'company_admin':
-      return [{ label: 'Users', to: '/users' }]
+      return [
+        { label: 'Users', to: '/users' },
+        { label: 'Departments', to: '/departments' },
+      ]
     case 'recruiter':
     case 'interviewer':
     case 'candidate':

@@ -2,6 +2,7 @@ import { Route, Routes } from 'react-router'
 import { RequireAuth, RequireRole } from '@/auth/guards'
 import Layout from '@/layout/Layout'
 import AcceptInvitationPage from '@/pages/AcceptInvitationPage'
+import DepartmentsPage from '@/pages/DepartmentsPage'
 import ForgotPasswordPage from '@/pages/ForgotPasswordPage'
 import HomePage from '@/pages/HomePage'
 import LoginPage from '@/pages/LoginPage'
@@ -25,6 +26,7 @@ export default function App() {
         <Route element={<RequireAuth />}>
           <Route element={<RequireRole roles={['company_admin']} />}>
             <Route path="users" element={<UsersPage />} />
+            <Route path="departments" element={<DepartmentsPage />} />
           </Route>
         </Route>
         <Route path="*" element={<NotFoundPage />} />
