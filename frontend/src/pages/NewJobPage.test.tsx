@@ -41,6 +41,28 @@ function startServer(options: { departments?: Department[]; user?: typeof adminU
     if (key === 'POST /api/jobs') {
       return { status: 201, body: { id: 'j-new' } }
     }
+    if (key === 'GET /api/jobs/j-new') {
+      return {
+        status: 200,
+        body: {
+          id: 'j-new',
+          title: 'Backend Engineer',
+          location: 'Oslo or remote',
+          description: 'Build and run our services.',
+          status: 'draft',
+          department: SALES,
+          created_at: '2026-11-10T12:00:00Z',
+          opened_at: null,
+          closed_at: null,
+          version: 1,
+          needs_reassignment: false,
+          recruiters: [],
+        },
+      }
+    }
+    if (key === 'GET /api/recruiters') {
+      return { status: 200, body: { items: [], total: 0, page: 1, page_size: 100 } }
+    }
     throw new Error(`Unplanned request in test: ${key}`)
   })
 
@@ -80,7 +102,7 @@ describe('NewJobPage', () => {
     expect(asked.path).toBe('/api/departments?page_size=100') // no archived ones
   })
 
-  it('creates the job as a draft with the CSRF token and returns to the list', async () => {
+  it('creates the job as a draft with the CSRF token and opens its page', async () => {
     const { calls } = startServer()
     renderApp('/manage/jobs/new')
     await screen.findByLabelText(/^title$/i)
@@ -89,7 +111,8 @@ describe('NewJobPage', () => {
     fillTheForm()
     press(/create job/i)
 
-    expect(await screen.findByRole('heading', { name: 'Jobs' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Backend Engineer' })).toBeInTheDocument()
+    expect(screen.getByText('Draft')).toBeInTheDocument()
     const post = calls.find((c) => c.method === 'POST' && c.path === '/api/jobs')!
     expect(post.body).toEqual({
       title: 'Backend Engineer',
@@ -109,7 +132,7 @@ describe('NewJobPage', () => {
     fillTheForm()
     press(/create job/i)
 
-    expect(await screen.findByRole('heading', { name: 'My jobs' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Backend Engineer' })).toBeInTheDocument()
   })
 
   it('shows the server message and keeps everything typed when the job is refused', async () => {
@@ -147,7 +170,7 @@ describe('NewJobPage', () => {
       fireEvent.submit(form)
     })
 
-    await screen.findByRole('heading', { name: 'Jobs' })
+    await screen.findByRole('heading', { name: 'Backend Engineer' })
     expect(calls.filter((c) => c.method === 'POST')).toHaveLength(1)
   })
 

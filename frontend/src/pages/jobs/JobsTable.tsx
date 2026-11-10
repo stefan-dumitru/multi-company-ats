@@ -1,3 +1,4 @@
+import { Link } from 'react-router'
 import { Badge } from '@/components/ui/badge'
 import {
   Table,
@@ -32,7 +33,9 @@ export default function JobsTable({ jobs }: { jobs: JobSummary[] }) {
         {jobs.map((job) => (
           <TableRow key={job.id}>
             <TableCell className="font-medium">
-              {job.title}
+              <Link to={`/manage/jobs/${job.id}`} className="underline-offset-4 hover:underline">
+                {job.title}
+              </Link>
               <span className="block text-sm font-normal text-muted-foreground">
                 {job.location}
               </span>

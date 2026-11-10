@@ -16,8 +16,8 @@ export default function NewJobPage() {
   const departments = useResource<Page<DepartmentChoice>>('/api/departments?page_size=100')
 
   async function createJob(values: JobFormValues) {
-    await api('/api/jobs', { method: 'POST', body: values })
-    navigate('/manage/jobs')
+    const created = await api<{ id: string }>('/api/jobs', { method: 'POST', body: values })
+    navigate(`/manage/jobs/${created.id}`)
   }
 
   return (

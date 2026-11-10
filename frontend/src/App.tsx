@@ -5,6 +5,7 @@ import AcceptInvitationPage from '@/pages/AcceptInvitationPage'
 import DepartmentsPage from '@/pages/DepartmentsPage'
 import ForgotPasswordPage from '@/pages/ForgotPasswordPage'
 import HomePage from '@/pages/HomePage'
+import JobDetailPage from '@/pages/JobDetailPage'
 import JobsPage from '@/pages/JobsPage'
 import LoginPage from '@/pages/LoginPage'
 import NewJobPage from '@/pages/NewJobPage'
@@ -29,6 +30,7 @@ export default function App() {
           <Route element={<RequireRole roles={['company_admin', 'recruiter']} />}>
             <Route path="manage/jobs" element={<JobsPage />} />
             <Route path="manage/jobs/new" element={<NewJobPage />} />
+            <Route path="manage/jobs/:jobId" element={<JobDetailPage />} />
           </Route>
           <Route element={<RequireRole roles={['company_admin']} />}>
             <Route path="users" element={<UsersPage />} />
