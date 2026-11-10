@@ -2,8 +2,11 @@ import { describe, expect, it } from 'vitest'
 import { landingPathFor, navItemsFor } from './navigation'
 
 describe('navItemsFor', () => {
-  it('gives company admins the Users page', () => {
-    expect(navItemsFor('company_admin')).toEqual([{ label: 'Users', to: '/users' }])
+  it('gives company admins the Users and Departments pages', () => {
+    expect(navItemsFor('company_admin')).toEqual([
+      { label: 'Users', to: '/users' },
+      { label: 'Departments', to: '/departments' },
+    ])
   })
 
   it.each(['recruiter', 'interviewer', 'candidate'] as const)(
