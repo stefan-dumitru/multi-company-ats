@@ -4,11 +4,12 @@ import { stubFetch } from '@/test-utils'
 import { useResource } from './useResource'
 
 function Probe({ path }: { path: string }) {
-  const { data, error, loading, reload } = useResource<string[]>(path)
+  const { data, error, loading, notFound, reload } = useResource<string[]>(path)
   return (
     <div>
       {loading && <p>loading</p>}
       {error && <p>error: {error}</p>}
+      {notFound && <p>not found</p>}
       {data && <p>data: {data.join(',')}</p>}
       <button onClick={() => reload()}>reload</button>
     </div>
@@ -108,5 +109,42 @@ describe('useResource', () => {
 
     expect(await screen.findByText('data: ok')).toBeInTheDocument()
     expect(screen.queryByText(/error:/)).not.toBeInTheDocument()
+  })
+})
+
+describe('useResource: not found', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('says so when the server answers 404, apart from other failures', async () => {
+    stubFetch({ 'GET /api/things': { status: 404, body: { detail: 'Not found.' } } })
+
+    render(<Probe path="/api/things" />)
+
+    expect(await screen.findByText('not found')).toBeInTheDocument()
+    expect(screen.getByText('error: Not found.')).toBeInTheDocument()
+  })
+
+  it('does not call a server error "not found"', async () => {
+    stubFetch({ 'GET /api/things': { status: 500 } })
+
+    render(<Probe path="/api/things" />)
+
+    await screen.findByText(/^error:/)
+    expect(screen.queryByText('not found')).not.toBeInTheDocument()
+  })
+
+  it('forgets "not found" once a reload succeeds', async () => {
+    let answer: { status: number; body: unknown } = { status: 404, body: { detail: 'Not found.' } }
+    stubFetch({ 'GET /api/things': () => answer })
+    render(<Probe path="/api/things" />)
+    await screen.findByText('not found')
+
+    answer = { status: 200, body: ['a'] }
+    fireEvent.click(screen.getByRole('button', { name: 'reload' }))
+
+    expect(await screen.findByText('data: a')).toBeInTheDocument()
+    expect(screen.queryByText('not found')).not.toBeInTheDocument()
   })
 })
