@@ -7,11 +7,11 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.models import Department, User
+from app.models import Department, Job, User
 from app.models.department import UNIQUE_NAME_INDEX
 from app.pagination import PageRequest
 from app.services.audit import record_audit
-from app.services.errors import DuplicateDepartmentName, NotFoundError
+from app.services.errors import DepartmentInUse, DuplicateDepartmentName, NotFoundError
 
 
 def list_departments(
@@ -129,3 +129,27 @@ def set_archived(
     )
     db.flush()
     return department
+
+
+def delete_department(db: Session, admin: User, department_id: uuid.UUID, now: datetime) -> None:
+    """Delete a department that no job has ever used; otherwise it must be archived instead."""
+    department = get_department(db, admin, department_id)
+    if db.scalar(select(Job.id).where(Job.department_id == department.id).limit(1)) is not None:
+        raise DepartmentInUse
+    record_audit(
+        db,
+        actor=admin,
+        action="department.deleted",
+        entity_type="department",
+        entity_id=department.id,
+        old_value={"name": department.name},
+        new_value=None,
+        now=now,
+    )
+    db.delete(department)
+    try:
+        with db.begin_nested():
+            db.flush()
+    except IntegrityError as error:
+        # A job picked this department at the very moment we deleted it: the foreign key refused.
+        raise DepartmentInUse from error

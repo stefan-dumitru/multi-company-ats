@@ -22,8 +22,8 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.auth.sessions import SESSION_COOKIE_NAME, create_session
-from app.models import AuditLog, Department, Invitation, Role, User
-from tests.factories import make_company, make_user
+from app.models import AuditLog, Department, Invitation, Job, PostingStatus, Role, User
+from tests.factories import make_company, make_job, make_user
 from tests.test_route_matrix import ROUTES
 
 NOT_FOUND = {"detail": "Not found."}
@@ -31,15 +31,19 @@ NOT_FOUND = {"detail": "Not found."}
 
 @dataclass
 class Tenant:
-    """One company's world: three staff members and a pending invitation."""
+    """One company's world: staff, a pending invitation, departments and two jobs."""
 
     name: str
     company_id: uuid.UUID
     admin: User
     recruiter: User
     interviewer: User
+    recruiter2: User  # assigned to nothing
     invitation: Invitation
-    department: Department
+    department: Department  # used by the jobs below
+    spare_department: Department  # used by nothing, so it can be deleted
+    job: Job  # a draft the first recruiter is assigned to
+    open_job: Job  # open, same recruiter
 
 
 def build_tenant(db: Session, name: str) -> Tenant:
@@ -48,6 +52,7 @@ def build_tenant(db: Session, name: str) -> Tenant:
     admin = make_user(db, email=f"admin@{slug}.test", role=Role.COMPANY_ADMIN, company=company)
     recruiter = make_user(db, email=f"rec@{slug}.test", role=Role.RECRUITER, company=company)
     interviewer = make_user(db, email=f"int@{slug}.test", role=Role.INTERVIEWER, company=company)
+    recruiter2 = make_user(db, email=f"rec2@{slug}.test", role=Role.RECRUITER, company=company)
     invitation = Invitation(
         company_id=company.id,
         email=f"newcomer@{slug}.test",
@@ -57,9 +62,33 @@ def build_tenant(db: Session, name: str) -> Tenant:
         expires_at=datetime.now(UTC) + timedelta(days=7),
     )
     department = Department(company_id=company.id, name=f"Engineering of {name}")
-    db.add_all([invitation, department])
+    spare_department = Department(company_id=company.id, name=f"Spare of {name}")
+    db.add_all([invitation, department, spare_department])
     db.flush()
-    return Tenant(name, company.id, admin, recruiter, interviewer, invitation, department)
+    job = make_job(
+        db, company=company, department=department, created_by=admin, recruiters=[recruiter]
+    )
+    open_job = make_job(
+        db,
+        company=company,
+        department=department,
+        created_by=admin,
+        recruiters=[recruiter],
+        status=PostingStatus.OPEN,
+    )
+    return Tenant(
+        name,
+        company.id,
+        admin,
+        recruiter,
+        interviewer,
+        recruiter2,
+        invitation,
+        department,
+        spare_department,
+        job,
+        open_job,
+    )
 
 
 @pytest.fixture
@@ -88,8 +117,12 @@ class IdCase:
     key: str
     # Which row of a tenant the id comes from, and the body (if any) that makes it a valid request.
     target: Callable[[Tenant], Any]
-    json: dict[str, Any] | None = None
+    # The body may depend on the tenant whose row is addressed.
+    json: dict[str, Any] | Callable[[Tenant], dict[str, Any]] | None = None
     path_param: str = "user_id"
+    # For routes with a second id in the path.
+    extra_params: Callable[[Tenant], dict[str, uuid.UUID]] | None = None
+    ok_status: int = 200
 
 
 ID_CASES = [
@@ -112,6 +145,37 @@ ID_CASES = [
         lambda t: t.department,
         path_param="department_id",
     ),
+    IdCase(
+        "DELETE /api/departments/{department_id}",
+        lambda t: t.spare_department,
+        path_param="department_id",
+        ok_status=204,
+    ),
+    IdCase("GET /api/jobs/{job_id}", lambda t: t.job, path_param="job_id"),
+    IdCase(
+        "PATCH /api/jobs/{job_id}",
+        lambda t: t.job,
+        {"version": 1, "title": "Renamed"},
+        path_param="job_id",
+    ),
+    IdCase("POST /api/jobs/{job_id}/publish", lambda t: t.job, {"version": 1}, path_param="job_id"),
+    IdCase(
+        "POST /api/jobs/{job_id}/close", lambda t: t.open_job, {"version": 1}, path_param="job_id"
+    ),
+    IdCase("DELETE /api/jobs/{job_id}", lambda t: t.job, path_param="job_id", ok_status=204),
+    IdCase(
+        "POST /api/jobs/{job_id}/recruiters",
+        lambda t: t.job,
+        lambda t: {"user_id": str(t.recruiter2.id)},
+        path_param="job_id",
+    ),
+    IdCase(
+        "DELETE /api/jobs/{job_id}/recruiters/{user_id}",
+        lambda t: t.job,
+        path_param="job_id",
+        extra_params=lambda t: {"user_id": t.recruiter.id},
+        ok_status=204,
+    ),
 ]
 
 
@@ -128,7 +192,12 @@ LIST_CASES = [
     ListCase(
         "GET /api/users",
         lambda body: {user["id"] for user in body},
-        lambda t: {str(t.admin.id), str(t.recruiter.id), str(t.interviewer.id)},
+        lambda t: {
+            str(t.admin.id),
+            str(t.recruiter.id),
+            str(t.interviewer.id),
+            str(t.recruiter2.id),
+        },
     ),
     ListCase(
         "GET /api/invitations",
@@ -138,7 +207,12 @@ LIST_CASES = [
     ListCase(
         "GET /api/departments",
         lambda body: {department["id"] for department in body["items"]},
-        lambda t: {str(t.department.id)},
+        lambda t: {str(t.department.id), str(t.spare_department.id)},
+    ),
+    ListCase(
+        "GET /api/jobs",
+        lambda body: {job["id"] for job in body["items"]},
+        lambda t: {str(t.job.id), str(t.open_job.id)},
     ),
 ]
 
@@ -159,6 +233,8 @@ NOT_COMPANY_SCOPED = {
     "POST /api/invitations/accept": "public; the invitation is found by its secret token",
     "POST /api/invitations": "creates in the caller's own company; takes no foreign id "
     "(see test_inviting_does_not_disturb_another_companys_invitation)",
+    "POST /api/jobs": "creates in the caller's own company; the department must be the caller's "
+    "own (see test_a_department_of_another_company_unknown_or_archived_cannot_be_used)",
     "POST /api/departments": "creates in the caller's own company; the company comes from the "
     "session and a company id in the body is refused (see test_unknown_fields_are_refused)",
 }
@@ -189,10 +265,15 @@ def test_a_route_with_a_path_id_must_have_an_id_case() -> None:
 # ---- the attacks -------------------------------------------------------------------------
 
 
-def send(client: TestClient, case: IdCase, row_id: uuid.UUID, csrf: str) -> Any:
+def send(client: TestClient, case: IdCase, tenant: Tenant, csrf: str) -> Any:
+    """Make the case's request against this tenant's row."""
     method, template = case.key.split(" ", 1)
-    path = template.replace("{" + case.path_param + "}", str(row_id))
-    return client.request(method, path, headers={"X-CSRF-Token": csrf}, json=case.json)
+    path = template.replace("{" + case.path_param + "}", str(case.target(tenant).id))
+    if case.extra_params is not None:
+        for name, value in case.extra_params(tenant).items():
+            path = path.replace("{" + name + "}", str(value))
+    body = case.json(tenant) if callable(case.json) else case.json
+    return client.request(method, path, headers={"X-CSRF-Token": csrf}, json=body)
 
 
 @pytest.mark.parametrize("case", ID_CASES, ids=lambda case: case.key)
@@ -202,7 +283,7 @@ def test_company_a_cannot_reach_company_bs_rows_by_id(
     a, b = world
     csrf = act_as_admin_of(client, db, a)
 
-    response = send(client, case, case.target(b).id, csrf)
+    response = send(client, case, b, csrf)
 
     assert response.status_code == 404
     assert response.json() == NOT_FOUND  # the same body as for an id that does not exist at all
@@ -216,9 +297,9 @@ def test_the_same_request_works_on_the_callers_own_company(
     a, _ = world
     csrf = act_as_admin_of(client, db, a)
 
-    response = send(client, case, case.target(a).id, csrf)
+    response = send(client, case, a, csrf)
 
-    assert response.status_code == 200
+    assert response.status_code == case.ok_status
 
 
 def test_the_attacks_left_company_b_untouched(
@@ -228,13 +309,19 @@ def test_the_attacks_left_company_b_untouched(
     csrf = act_as_admin_of(client, db, a)
 
     for case in ID_CASES:
-        send(client, case, case.target(b).id, csrf)
+        send(client, case, b, csrf)
 
     db.expire_all()
     for member in (b.admin, b.recruiter, b.interviewer):
         stored = db.get(User, member.id)
         assert stored is not None
         assert stored.role == member.role and stored.is_active and stored.deactivated_at is None
+    for untouched_job, expected_status in ((b.job, "draft"), (b.open_job, "open")):
+        stored_job = db.get(Job, untouched_job.id)
+        assert stored_job is not None
+        assert stored_job.status == expected_status and stored_job.version == 1
+        assert stored_job.title == untouched_job.title
+    assert db.get(Department, b.spare_department.id) is not None
     stored_department = db.get(Department, b.department.id)
     assert stored_department is not None
     assert stored_department.name == f"Engineering of {b.name}"

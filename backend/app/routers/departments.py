@@ -1,7 +1,7 @@
 import uuid
 from datetime import UTC, datetime
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Response
 from sqlalchemy.orm import Session
 
 from app.auth.permissions import Permission, require_permission
@@ -88,3 +88,14 @@ def unarchive_department(
     )
     db.commit()
     return department
+
+
+@router.delete("/{department_id}", status_code=204)
+def delete_department(
+    department_id: uuid.UUID,
+    admin: User = Depends(require_permission(Permission.MANAGE_DEPARTMENTS)),
+    db: Session = Depends(get_db),
+) -> Response:
+    departments_service.delete_department(db, admin, department_id, datetime.now(UTC))
+    db.commit()  # the deletion and its audit row: one transaction
+    return Response(status_code=204)
