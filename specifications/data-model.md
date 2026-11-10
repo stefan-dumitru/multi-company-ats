@@ -89,7 +89,11 @@ above.
 - **Lifecycle:** Created and edited by a company admin. Archived rather than deleted once used.
 - **Delete/cascade semantics:** Block deletion while jobs reference it; archive instead.
   Archived departments cannot be picked for new jobs.
-- **Constraints / invariants:** `name` unique per company.
+- **Constraints / invariants:** `name` is 1 to 100 characters, trimmed, and unique per company
+  ignoring case ("Sales" and "sales" clash; enforced by a unique index on `lower(name)`).
+  Departments can be renamed, archived and un-archived; each change is audited. Deleting one is
+  built together with `Job` (Phase 4, step 2), because only then can "jobs reference it" be
+  checked.
 
 ### Job — Master
 

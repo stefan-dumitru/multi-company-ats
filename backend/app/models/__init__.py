@@ -3,6 +3,7 @@
 from app.models.audit_log import AuditLog
 from app.models.background_job import BackgroundJob, JobStatus
 from app.models.company import Company
+from app.models.department import Department
 from app.models.invitation import Invitation
 from app.models.login_attempt import LoginAttempt
 from app.models.session import UserSession
@@ -15,6 +16,7 @@ __all__ = [
     "AuditLog",
     "BackgroundJob",
     "Company",
+    "Department",
     "Invitation",
     "JobStatus",
     "LoginAttempt",

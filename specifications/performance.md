@@ -28,7 +28,10 @@ set here.
 ## Constraints This Implies
 
 - Pagination required on: every list endpoint — jobs, applications, talent pool results, users,
-  interviews, notes, audit log. Default and maximum page size: [TODO]
+  interviews, notes, audit log. Query parameters `page` (from 1, at most 10000) and `page_size`
+  (default 20, maximum 100); the answer is `{items, total, page, page_size}`, ordered with a
+  tiebreaker on the id so no row repeats or is skipped between pages (`app/pagination.py`). Built
+  for departments in Phase 4; the older users and invitations lists are not paginated yet.
 - Caching — what gets cached and for how long: Nothing in v1. Revisit only if a measured
   problem appears (dashboard aggregates are the likely first candidate). Any cache added later
   needs a TTL and an invalidation rule in `operations.md` > Query Efficiency.

@@ -36,6 +36,7 @@ from app.models import Role
 from tests.factories import make_company, make_user
 
 ADMIN_ONLY = frozenset({Role.COMPANY_ADMIN})
+ADMIN_AND_RECRUITER = frozenset({Role.COMPANY_ADMIN, Role.RECRUITER})
 EVERY_LOGGED_IN_ROLE = frozenset(Role)
 # None means "public": anyone, logged in or not.
 POLICY: dict[str, frozenset[Role] | None] = {
@@ -58,6 +59,11 @@ POLICY: dict[str, frozenset[Role] | None] = {
     "PATCH /api/users/{user_id}/role": ADMIN_ONLY,
     "POST /api/users/{user_id}/deactivate": ADMIN_ONLY,
     "POST /api/users/{user_id}/reactivate": ADMIN_ONLY,
+    "GET /api/departments": ADMIN_AND_RECRUITER,
+    "POST /api/departments": ADMIN_ONLY,
+    "PATCH /api/departments/{department_id}": ADMIN_ONLY,
+    "POST /api/departments/{department_id}/archive": ADMIN_ONLY,
+    "POST /api/departments/{department_id}/unarchive": ADMIN_ONLY,
 }
 
 

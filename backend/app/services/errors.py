@@ -6,6 +6,10 @@ class NotFoundError(Exception):
     """
 
 
+class DuplicateDepartmentName(Exception):
+    """The company already has a department with this name (ignoring case)."""
+
+
 class EmailAlreadyRegistered(Exception):
     """An account with this email exists (one email is one account, across all companies)."""
 
