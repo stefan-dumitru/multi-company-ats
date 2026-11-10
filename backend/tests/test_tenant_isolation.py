@@ -210,6 +210,11 @@ LIST_CASES = [
         lambda t: {str(t.department.id), str(t.spare_department.id)},
     ),
     ListCase(
+        "GET /api/recruiters",
+        lambda body: {person["id"] for person in body["items"]},
+        lambda t: {str(t.recruiter.id), str(t.recruiter2.id)},
+    ),
+    ListCase(
         "GET /api/jobs",
         lambda body: {job["id"] for job in body["items"]},
         lambda t: {str(t.job.id), str(t.open_job.id)},
