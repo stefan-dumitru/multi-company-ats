@@ -88,7 +88,8 @@ Needs Docker, Python 3.14 and Node 26.
 # 1. Settings: copy the example, then edit the password if you like (.env is git-ignored)
 cp .env.example .env
 
-# 2. Postgres on 127.0.0.1:5433, and Mailpit (catches emails; inbox at http://127.0.0.1:8025)
+# 2. Postgres on 127.0.0.1:5433, Mailpit (catches emails; inbox at http://127.0.0.1:8025),
+#    and a small S3-compatible server for resume files on 127.0.0.1:9000
 docker compose up -d --wait
 
 # 3. Backend
