@@ -30,7 +30,9 @@ unless this file says otherwise.
 - **Backend:** FastAPI, SQLAlchemy, Alembic. Hand-written Postgres-backed background worker (no
   Redis/Celery). Dependencies managed with pip + venv + pinned `requirements.txt`.
 - **Database:** PostgreSQL. Resume files in an S3-compatible bucket (Railway bucket in
-  staging/production, MinIO locally and in CI).
+  staging/production, a small S3-compatible stand-in server locally and in CI: MinIO no longer
+  publishes images, so it is the Versity S3 Gateway). The S3 client is `boto3`, used only in
+  `backend/app/integrations/storage.py`.
 - **Hosting / CI/CD:** Railway (staging + production), GitHub Actions. Docker.
 - **Testing:** pytest (backend); Vitest + React Testing Library (frontend); Playwright
   (end-to-end, post-deploy).
@@ -49,7 +51,8 @@ how). Verified in Phase 0 unless marked otherwise.
 | Purpose | Command |
 |---|---|
 | Install dependencies | `pip install -r requirements-dev.txt` in `backend/`; `npm ci` in `frontend/` |
-| Start the local services | `docker compose up -d --wait` from the repo root (Postgres on `127.0.0.1:5433`, Mailpit inbox on `http://127.0.0.1:8025`); stop with `docker compose stop` |
+| Start the local services | `docker compose up -d --wait` from the repo root (Postgres on `127.0.0.1:5433`, Mailpit inbox on `http://127.0.0.1:8025`, the S3 stand-in on
+`http://127.0.0.1:9000`, which the storage tests need); stop with `docker compose stop` |
 | Run in development | `uvicorn app.main:app --reload` in `backend/`; the worker: `python -m app.worker` (`python -m app.worker status` shows the queue); `npm run dev` in `frontend/` (proxies `/health`, `/ready` and `/api` to port 8000) |
 | Run tests | `pytest` in `backend/` (needs the local database: one test applies the migrations to a throwaway database); `npm test` in `frontend/`. End-to-end (Playwright): not set up yet, Phase 11 |
 | Run a single test file | `pytest tests/<file>.py` in `backend/`; `npm test -- <file>` in `frontend/` |

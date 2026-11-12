@@ -17,8 +17,9 @@ from sqlalchemy import Engine, create_engine, text
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import Session
 
-from app.config import get_database_url
+from app.config import get_database_url, get_storage_settings
 from app.db import Base, get_db
+from app.integrations import storage
 from app.main import app
 
 ALEMBIC_INI = Path(__file__).resolve().parents[1] / "alembic.ini"
@@ -86,3 +87,27 @@ def client(db: Session, monkeypatch: pytest.MonkeyPatch) -> Iterator[TestClient]
     with TestClient(app, base_url="https://testserver") as test_client:
         yield test_client
     app.dependency_overrides.clear()
+
+
+@pytest.fixture
+def storage_bucket(monkeypatch: pytest.MonkeyPatch) -> Iterator[str]:
+    """A fresh, empty bucket on the S3-compatible test server, selected through S3_BUCKET.
+
+    The server comes from docker compose locally (see .env.example) and from a step in the pull
+    request pipeline. Without it these tests fail, loudly, instead of quietly not running.
+    """
+    settings = get_storage_settings()
+    if settings is None:
+        pytest.fail(
+            "No storage settings. Start the test server with `docker compose up -d --wait` and "
+            "load .env into your shell (the README shows how)."
+        )
+    bucket = f"ats-test-{uuid.uuid4().hex[:12]}"
+    client = storage.client_for(settings)
+    client.create_bucket(Bucket=bucket)
+    monkeypatch.setenv("S3_BUCKET", bucket)
+    yield bucket
+    listing = client.list_objects_v2(Bucket=bucket)
+    for item in listing.get("Contents", []):
+        client.delete_object(Bucket=bucket, Key=item["Key"])
+    client.delete_bucket(Bucket=bucket)

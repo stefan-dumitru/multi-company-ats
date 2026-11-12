@@ -145,3 +145,70 @@ def get_app_base_url() -> str:
     if parts.scheme == "http" and parts.hostname not in ("localhost", "127.0.0.1"):
         raise RuntimeError("APP_BASE_URL must use https (http is allowed only for localhost).")
     return value
+
+
+@dataclass(frozen=True)
+class StorageSettings:
+    endpoint_url: str
+    bucket: str
+    access_key_id: str
+    secret_access_key: str = field(repr=False)  # repr=False: never printed by accident
+    region: str
+    addressing_style: str
+
+
+_STORAGE_REQUIRED = ("S3_ENDPOINT_URL", "S3_BUCKET", "S3_ACCESS_KEY_ID", "S3_SECRET_ACCESS_KEY")
+_BUCKET_NAME = re.compile(r"[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]")
+
+
+def get_storage_settings() -> StorageSettings | None:
+    """Where resume files are kept, or None when no storage is set up at all.
+
+    Storage is optional at startup: the app runs without it, and only an upload or a download then
+    says so. Setting some of the values but not all of them is a mistake and fails loudly.
+    """
+    values = {name: os.environ.get(name, "").strip() for name in _STORAGE_REQUIRED}
+    if not any(values.values()):
+        return None
+    missing = [name for name, value in values.items() if not value]
+    if missing:
+        raise RuntimeError(
+            f"{', '.join(missing)} not set, but other S3_ settings are. See .env.example."
+        )
+
+    endpoint = values["S3_ENDPOINT_URL"].rstrip("/")
+    parts = urlsplit(endpoint)
+    looks_valid = (
+        parts.scheme in ("http", "https")
+        and bool(parts.hostname)
+        and not re.search(r"\s", endpoint)
+        and parts.path == ""
+        and not parts.query
+        and not parts.fragment
+    )
+    if not looks_valid:
+        raise RuntimeError(
+            "S3_ENDPOINT_URL must be a web address like https://storage.example.com."
+        )
+    # Resumes are personal data: no plain http except to a server on this very machine.
+    if parts.scheme == "http" and parts.hostname not in ("localhost", "127.0.0.1"):
+        raise RuntimeError("S3_ENDPOINT_URL must use https (http is allowed only for localhost).")
+
+    if not _BUCKET_NAME.fullmatch(values["S3_BUCKET"]):
+        raise RuntimeError(
+            "S3_BUCKET is not a valid bucket name (lower-case letters, digits, - .)."
+        )
+
+    region = os.environ.get("S3_REGION", "").strip() or "us-east-1"
+    style = os.environ.get("S3_ADDRESSING_STYLE", "").strip().lower() or "path"
+    if style not in ("path", "virtual", "auto"):
+        raise RuntimeError("S3_ADDRESSING_STYLE must be path, virtual or auto.")
+
+    return StorageSettings(
+        endpoint_url=endpoint,
+        bucket=values["S3_BUCKET"],
+        access_key_id=values["S3_ACCESS_KEY_ID"],
+        secret_access_key=values["S3_SECRET_ACCESS_KEY"],
+        region=region,
+        addressing_style=style,
+    )
