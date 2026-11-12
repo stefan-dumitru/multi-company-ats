@@ -10,7 +10,7 @@ accepts pull requests whose checks pass.
 
 ## Status
 
-Phases 0 to 3 are done:
+Phases 0 to 4 are done:
 
 - **Phase 0:** a FastAPI backend, a React app, one Docker image that serves both, and the pull
   request pipeline.
@@ -23,8 +23,12 @@ Phases 0 to 3 are done:
   (retry with backoff, no duplicate emails, two workers never take the same job) send invitation,
   email-verification and password-reset emails. Links in emails are signed and single-use; a user
   who has not verified their email can log in and nothing else. The worker is deployed and rolled
-  back together with the web service, and an hourly job purges old technical rows. Hiring
-  features (jobs, applications) start in Phase 4.
+  back together with the web service, and an hourly job purges old technical rows.
+- **Phase 4:** departments and jobs. Admins organise jobs into departments; admins and
+  recruiters create, edit, publish and close jobs (a recruiter sees only the jobs assigned to
+  them, a job always keeps a recruiter while it is open, and two people editing the same job
+  cannot overwrite each other). Anyone can search open jobs by keyword and location without
+  logging in. Applications start in Phase 5.
 
 - Staging: https://multi-company-ats-staging.up.railway.app
 - Production: https://multi-company-ats-production.up.railway.app

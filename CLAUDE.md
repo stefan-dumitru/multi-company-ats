@@ -61,14 +61,17 @@ how). Verified in Phase 0 unless marked otherwise.
 
 ## Project Structure
 
-What exists after Phase 3, and (marked *planned*) what later phases add:
+What exists after Phase 4, and (marked *planned*) what later phases add:
 
 - `backend/app/` — FastAPI app. Today: `main.py` (wires the routers; `/health`, `/ready`), `config.py`
   (all environment settings, in one place), `db.py` (engine and session), `frontend.py` (serves
   the built React app), `models/` (SQLAlchemy), `schemas/` (request/response models), `routers/`
   (HTTP layer only), `auth/` (passwords, sessions, rate limiting, current user, `permissions.py`:
   the role table and `require_permission`; `tokens.py`: signed email links), `services/` (business
-  rules and tenant-scoped data access; `users.py` is the pattern to copy), `emails/` (one template
+  rules and tenant-scoped data access; `users.py` is the pattern to copy; `jobs.py` shows scoping
+  by assignment, row locks and versions; `public_jobs.py` is the one place that reads company data
+  without a user, limited to open jobs), `pagination.py` (the one paging rule: `page`,
+  `page_size`, `{items, total, page, page_size}`), `emails/` (one template
   per email, registered by name), `integrations/` (`smtp.py`), `worker/` (`queue.py`: the
   Postgres-backed job queue; `runner.py`: the loop; `handlers.py`: job type to function;
   `heartbeat.py`, `status.py`, `maintenance.py`: the hourly purge; `python -m app.worker` runs it),
@@ -78,8 +81,9 @@ What exists after Phase 3, and (marked *planned*) what later phases add:
   gate, role x endpoint matrix and tenant-isolation tests. Adding a route means updating `POLICY`
   in `test_route_matrix.py` and classifying it in `test_tenant_isolation.py`.
 - `frontend/src/` — React + TypeScript app (Tailwind, shadcn/ui, react-router): `api/`, `auth/`,
-  `layout/`, `pages/`, `components/ui/`; see `specifications/ui-guidelines.md` > Component
-  structure convention. *Planned:* `frontend/e2e/` for Playwright (Phase 11).
+  `layout/`, `pages/` (a page's own parts live in a folder beside it, for example `pages/jobs/`),
+  `components/` (shared pieces such as `Pager`), `components/ui/`; see
+  `specifications/ui-guidelines.md` > Component structure convention. *Planned:* `frontend/e2e/` for Playwright (Phase 11).
 - `.github/workflows/` — `pr.yml` (checks on every pull request), `deploy.yml` (publish, staging,
   approved production, rollback), `monitor.yml` (hourly worker and failed-job check).
 - `deploy/` — the pipeline's own tooling, standard library only: `smoke_test.py`, `monitor.py`,

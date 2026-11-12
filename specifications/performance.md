@@ -46,7 +46,9 @@ set here.
     `Scorecard(interview_id, interviewer_id)`, `BackgroundJob(idempotency_key)`.
   - `BackgroundJob(status, run_at)` for the worker's polling query.
   - `ApplicationStageHistory(application_id, changed_at)` for the funnel/time queries.
-- Debounce interval for search/filter inputs that trigger an API call: [TODO]
+- Debounce interval for search/filter inputs that trigger an API call: none. Searches run when
+  the form is submitted (a Search button), not on every keystroke; the status and department
+  filters on the staff jobs page are dropdowns, one request per choice.
 
 ## Frontend Performance Budget
 

@@ -154,6 +154,58 @@ The roles table above says *what* each role can do. This section says *how*.
   writes no audit row. Changing a user's role while they have
   pending work: [TODO].
 
+### Manage departments
+
+- **Role(s):** Company admin writes; admins and recruiters read (a recruiter needs the list to
+  pick a department for a job).
+- **Trigger:** Departments page.
+- **Main flow:** The admin adds a department, renames it, archives it or brings it back, or deletes
+  it. Every change is written to the audit log.
+- **Rules & edge cases:** A name is 1 to 100 characters, trimmed, and unique within a company
+  ignoring case ("Sales" and "sales" clash; two admins adding the same name at once cannot both
+  succeed). Another company's department is "not found". An archived department stays on the jobs
+  that use it but cannot be chosen for a new job or a change of department. A department can be
+  deleted only while no job, of any status, has ever used it; otherwise it is archived instead.
+  Repeating an archive, or renaming to the same name, changes nothing and writes no audit row.
+
+### Create, publish and close a job
+
+- **Role(s):** Company admin (any job of the company); recruiter (jobs assigned to them).
+- **Trigger:** "New job" on the Jobs page; the job's own page.
+- **Main flow:** Title, location, department and description are entered; the job starts as a
+  draft. A recruiter who creates it is assigned to it; an admin who creates it is not (an admin is
+  not a recruiter) and adds recruiters afterwards. The job is edited while it is a draft or open,
+  then published (open) and later closed. A draft can be deleted instead. Recruiters on a job are
+  added by an admin or by a recruiter already on it, and removed the same way.
+- **Rules & edge cases:** The list shows an admin every job of the company and a recruiter only the
+  jobs assigned to them; any other job is "not found". Publishing needs at least one active
+  recruiter on the job, and an open job cannot lose its last active recruiter (409). Closed is
+  final: a closed job cannot be edited or reopened, and a draft cannot be closed. Only a draft can
+  be deleted (once applications exist, only a draft without applications). Repeating a status
+  change that is already in effect (a double click) succeeds and changes nothing. Every edit,
+  publish and close quotes the job's version; if someone else changed the job meanwhile the change
+  is refused (409) and the screen offers to load the latest version, keeping what was typed. Two
+  people acting at the same moment take turns (the job row is locked). A job whose recruiters have
+  all been deactivated is flagged "needs a recruiter". Create, edit, publish, close, delete and
+  recruiter changes are audited, in the same transaction; the audit row names the fields that
+  changed, never the text.
+
+### Search and read open jobs
+
+- **Role(s):** Anyone, logged in or not.
+- **Trigger:** "Find jobs" in the menu, or the home page.
+- **Main flow:** The visitor enters keywords and/or a location and presses Search; results are
+  open jobs of every company, best match first (newest first without keywords), 20 per page. A
+  card links to the job's page, which shows the full description and a link to the company's other
+  jobs. What was asked for lives in the address, so a search can be shared as a link.
+- **Rules & edge cases:** Only open jobs are ever reachable: drafts and closed jobs are missing
+  from the list and from search, and answer "not found" by id, so a link to a job that closed shows
+  "no longer available". Keywords use Postgres full-text search in English: other forms of a word
+  match, a title match outranks a description match, and quoted phrases, `or` and a leading `-`
+  work; odd input never fails. Keywords and location are at most 200 characters; a `%` or `_` in
+  the location is a plain character. Only a fixed set of fields is shown (never who works on the
+  job). Candidates cannot apply yet (Phase 5).
+
 ### Candidate applies to a job
 
 - **Role(s):** Candidate.
