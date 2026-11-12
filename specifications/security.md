@@ -94,7 +94,10 @@ This section covers how it's implemented and how it fails.
   - Tenant isolation (`test_tenant_isolation.py`): every route must be classified. Id-based routes
     are attacked as company A against company B's ids and must answer 404 (each attack has a
     control that must succeed on A's own data); lists must contain only the caller's rows; B's
-    data must be untouched afterwards.
+    data must be untouched afterwards. Routes that are public by design are classified too, with
+    a reason, and a route with an id in its path may be exempted from the attack only if it is
+    public (`PUBLIC_ROUTES_WITH_ID`, which a test checks); their own tests
+    (`test_public_jobs.py`) prove that nothing but open jobs and the whitelisted fields leaves.
 
 ## Data Protection
 
@@ -144,6 +147,10 @@ The per-project choices:
   certification, malware scanning of resumes [TODO], advanced bot protection. Known and accepted
   until the phase that fixes them:
   - Company signup is open and not rate limited, so someone could create many companies (Phase 2).
+  - The public job routes (`/api/public/jobs`) need no login and are not rate limited. They are
+    bounded instead: keywords and location are at most 200 characters, a page holds at most 100
+    rows, the page number is capped, and the query is a single indexed lookup. Only open jobs
+    and a fixed list of fields are returned (Phase 4).
   - A failed signup still hints that an email is registered. Making it fully non-revealing would
     mean emailing the existing owner instead, which v1 does not do (login and password reset do
     not reveal it).
