@@ -80,7 +80,8 @@ Applies (the app is deployed to staging and production), at a minimal level:
 - Which environments exist (local / staging / production), and how closely staging mirrors prod:
   - **Local:** `docker compose` runs Postgres (on host port 5433, so it cannot clash with a
     Postgres already installed on the machine), plus Mailpit (SMTP catcher, from Phase 3) and
-    MinIO (S3 stand-in, from Phase 5); the backend and frontend run on the host. Use
+    the Versity S3 Gateway (the S3 stand-in for the resume bucket, from Phase 5; MinIO would be
+    the usual choice but no longer publishes images); the backend and frontend run on the host. Use
     `127.0.0.1`, not `localhost`, in database URLs: on Windows with Docker Desktop `localhost`
     tries IPv6 first and hangs.
   - **Staging:** one Railway environment (`staging`) with its own Postgres, bucket and secrets;
@@ -98,7 +99,11 @@ Applies (the app is deployed to staging and production), at a minimal level:
   the `postgresql+psycopg://` prefix), `PORT` and `SECRET_KEY`. The worker service has
   `DATABASE_URL`, `SECRET_KEY`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_STARTTLS`, `EMAIL_FROM` and
   `APP_BASE_URL` (Railway also sets `RAILWAY_DEPLOYMENT_ID`, which the worker reports). Optional:
-  `JOB_BACKOFF_SECONDS` (local demos), `SMTP_USERNAME` and `SMTP_PASSWORD`. Local-only: `STATIC_DIR`
+  `JOB_BACKOFF_SECONDS` (local demos), `SMTP_USERNAME` and `SMTP_PASSWORD`. File storage (web
+  service, from Phase 5): `S3_ENDPOINT_URL`, `S3_BUCKET`, `S3_ACCESS_KEY_ID` and
+  `S3_SECRET_ACCESS_KEY` together or not at all (without them the app still starts and only an
+  upload or download says storage is not available), optionally `S3_REGION` and
+  `S3_ADDRESSING_STYLE`; the endpoint must be https except for a server on this machine. Local-only: `STATIC_DIR`
   is set by the Dockerfile, `COOKIE_SECURE` by `.env`. GitHub environment secret `RAILWAY_TOKEN` and
   variables `RAILWAY_ENVIRONMENT_ID`, `RAILWAY_SERVICE_ID`, `RAILWAY_WORKER_SERVICE_ID`, `APP_URL`,
   set separately on `staging` and `production`. `COOKIE_SECURE` (default on, so Railway needs nothing) is the one runtime
@@ -255,7 +260,8 @@ Applies. Services and their failure behavior:
 - Whether integration failures surface to the user immediately or get queued and retried
   silently: bucket and Google OAuth errors surface immediately (the user is waiting); email and
   calendar failures are retried silently.
-- Tests never call real third parties: SMTP goes to Mailpit, storage to MinIO, and Google is
+- Tests never call real third parties: SMTP goes to Mailpit, storage to the local S3 stand-in
+  (started by docker compose, and by a step of the pull request pipeline), and Google is
   mocked.
 
 ## Concurrency & Write Correctness

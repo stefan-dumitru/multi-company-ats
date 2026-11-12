@@ -31,3 +31,9 @@ python_version = "3.14"
 # deploy/ is the pipeline's own tooling (repo root); it is held to the same strict standard.
 files = ["app", "../deploy"]
 exclude = ["../deploy/tests/"]
+
+# boto3 ships no type information (and its separate stubs package would be one more dependency).
+# Only app/integrations/storage.py touches it, and keeps the untyped client behind three functions.
+[[tool.mypy.overrides]]
+module = ["boto3", "boto3.*", "botocore", "botocore.*"]
+ignore_missing_imports = true
