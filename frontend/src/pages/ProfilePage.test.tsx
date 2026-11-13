@@ -16,6 +16,7 @@ interface ProfileData {
   email: string
   phone: string | null
   location: string | null
+  resume: null
 }
 
 /** A candidate and their profile, answering the way the real server does. */
@@ -29,6 +30,7 @@ function startServer(
       email: user.email,
       phone: null,
       location: null,
+      resume: null,
       ...options.profile,
     } as ProfileData,
     failNext: {} as Record<string, Reply>,
