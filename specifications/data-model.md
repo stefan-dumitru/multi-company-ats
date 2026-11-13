@@ -76,9 +76,9 @@ above.
 - **Relationships:** one-to-one with `User`; references `File`.
 - **Built so far:** `phone` (at most 30 characters: digits, spaces and `+ ( ) - .`) and
   `location` (at most 200). The profile row is created together with the account, or on first
-  use if an account somehow has none. `current_resume_file_id` arrives with the resume upload and
-  `is_discoverable` / `discoverable_since` with the talent pool (Phase 9), each as an additive
-  migration.
+  use if an account somehow has none. `current_resume_file_id` (the resume applications will
+  snapshot) is set by the resume upload; `is_discoverable` / `discoverable_since` arrive with the
+  talent pool (Phase 9) as an additive migration.
 - **Lifecycle:** Created at registration. Editable by the candidate only. Personal fields erased
   on anonymization.
 - **Delete/cascade semantics:** Follows the `User`. Replacing the resume creates a new `File`;
@@ -252,7 +252,11 @@ above.
   (display only), `content_type`, `size_bytes`, `uploaded_at`, `deleted_at`.
 - **Relationships:** referenced by `CandidateProfile` and `Application`.
 - **Lifecycle:** Immutable once uploaded. A "replacement" is a new `File`.
-- **Delete/cascade semantics:** Removed from storage only when the owner is anonymized.
+- **Delete/cascade semantics:** Removed from storage when the owner is anonymized, and when a
+  resume is replaced and nothing references the old file any more: the replacement queues a
+  `delete_file` background job (idempotency key `delete_file:<file id>`), which decides at run
+  time whether anything still needs the file (today: the candidate's current resume), removes
+  the object and sets `deleted_at`. If storage is down the job is retried with backoff.
 - **Constraints / invariants:** Only the key is stored, resolved against the configured bucket;
   see `security.md` > File Upload Handling.
 

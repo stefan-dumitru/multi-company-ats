@@ -248,6 +248,10 @@ NOT_COMPANY_SCOPED = {
     "test_one_candidate_cannot_change_another)",
     "PATCH /api/profile": "acts on the caller's own profile only; takes no id (see "
     "test_one_candidate_cannot_change_another)",
+    "PUT /api/profile/resume": "stores the caller's own resume only; takes no id (see "
+    "test_each_candidate_gets_only_their_own_resume)",
+    "GET /api/profile/resume": "reads the caller's own resume only; takes no id (see "
+    "test_each_candidate_gets_only_their_own_resume)",
     "POST /api/jobs": "creates in the caller's own company; the department must be the caller's "
     "own (see test_a_department_of_another_company_unknown_or_archived_cannot_be_used)",
     "POST /api/departments": "creates in the caller's own company; the company comes from the "

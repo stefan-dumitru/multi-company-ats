@@ -232,6 +232,7 @@ def test_a_verified_candidate_reads_their_own_profile(client: TestClient, db: Se
         "email": "cara@example.test",
         "phone": None,
         "location": None,
+        "resume": None,
     }
 
 
@@ -270,6 +271,7 @@ def test_a_candidate_updates_their_profile(client: TestClient, db: Session) -> N
         "email": "cara@example.test",
         "phone": "+47 123 45 678",
         "location": "Oslo",
+        "resume": None,
     }
     assert client.get("/api/profile").json()["phone"] == "+47 123 45 678"
     user = db.scalar(select(User))

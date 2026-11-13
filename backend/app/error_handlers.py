@@ -1,6 +1,7 @@
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
+from app.integrations.storage import StorageNotConfigured, StorageUnavailable
 from app.services.errors import EmailNotVerified, NotFoundError, RuleViolation
 
 
@@ -23,7 +24,20 @@ def rule_violation_handler(_request: Request, error: Exception) -> JSONResponse:
     )
 
 
+def storage_unavailable_handler(_request: Request, _error: Exception) -> JSONResponse:
+    # Not set up, or the server is down: the same answer, and the log says which (operations.md).
+    return JSONResponse(
+        {
+            "detail": "File storage is not available. Please try again later.",
+            "code": "storage_unavailable",
+        },
+        status_code=503,
+    )
+
+
 def add_error_handlers(app: FastAPI) -> None:
+    app.add_exception_handler(StorageNotConfigured, storage_unavailable_handler)
+    app.add_exception_handler(StorageUnavailable, storage_unavailable_handler)
     app.add_exception_handler(RuleViolation, rule_violation_handler)
     app.add_exception_handler(NotFoundError, not_found_handler)
     app.add_exception_handler(EmailNotVerified, email_not_verified_handler)

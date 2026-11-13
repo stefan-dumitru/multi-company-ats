@@ -70,6 +70,30 @@ class InvalidRecruiter(RuleViolation):
     message = "Choose an active recruiter of your company."
 
 
+class ResumeEmpty(RuleViolation):
+    status_code = 422
+    code = "resume_empty"
+    message = "The file is empty."
+
+
+class ResumeTypeUnsupported(RuleViolation):
+    status_code = 422
+    code = "resume_type_unsupported"
+    message = "Upload a PDF or a Word (.docx) file."
+
+
+class ResumeTooLarge(RuleViolation):
+    status_code = 413
+    code = "resume_too_large"
+    message = "The file is too large. The limit is 5 MB."
+
+
+class UploadLimitReached(RuleViolation):
+    status_code = 429
+    code = "upload_limit"
+    message = "You can upload at most 5 files per hour. Please try again later."
+
+
 class DuplicateDepartmentName(Exception):
     """The company already has a department with this name (ignoring case)."""
 
