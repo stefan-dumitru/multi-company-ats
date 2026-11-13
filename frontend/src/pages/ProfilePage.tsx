@@ -4,6 +4,8 @@ import { useAuth } from '@/auth/AuthContext'
 import { Button } from '@/components/ui/button'
 import ProfileForm from './profile/ProfileForm'
 import type { ProfileValues } from './profile/ProfileForm'
+import ResumeSection from './profile/ResumeSection'
+import type { ResumeInfo } from './profile/ResumeSection'
 
 /** What the server says about the candidate's own profile. */
 interface Profile {
@@ -11,6 +13,7 @@ interface Profile {
   email: string
   phone: string | null
   location: string | null
+  resume: ResumeInfo | null
 }
 
 export default function ProfilePage() {
@@ -61,6 +64,7 @@ export default function ProfilePage() {
         email={profile.data.email}
         onSave={save}
       />
+      <ResumeSection resume={profile.data.resume} onUploaded={profile.reload} />
     </div>
   )
 }

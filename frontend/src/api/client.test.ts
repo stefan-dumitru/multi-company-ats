@@ -211,3 +211,60 @@ describe('api client: error codes', () => {
     expect((failure as ApiError).code).toBeUndefined()
   })
 })
+
+describe('api client: sending a file', () => {
+  beforeEach(() => {
+    setCsrfToken(null)
+    setUnauthorizedHandler(null)
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('sends the file itself as the body, not wrapped in JSON, and still adds the CSRF token', async () => {
+    const calls: { body: unknown; headers: Record<string, string> }[] = []
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (_path: string, init?: RequestInit) => {
+        calls.push({ body: init?.body, headers: init?.headers as Record<string, string> })
+        return { ok: true, status: 200, json: async () => ({ filename: 'cv.pdf' }) }
+      }),
+    )
+    setCsrfToken('secret-token')
+    const file = new File(['%PDF-1.7 data'], 'cv.pdf', { type: 'application/pdf' })
+
+    await api('/api/profile/resume?filename=cv.pdf', { method: 'PUT', file })
+
+    expect(calls[0].body).toBe(file) // the very same object: not read, not copied, not encoded
+    expect(calls[0].headers['Content-Type']).toBe('application/octet-stream')
+    expect(calls[0].headers['X-CSRF-Token']).toBe('secret-token')
+  })
+
+  it('keeps the code of a server error but never its text', async () => {
+    stubFetch({
+      'PUT /api/profile/resume': {
+        status: 503,
+        body: { detail: 'internal: bucket ats-resumes at 10.0.0.5', code: 'storage_unavailable' },
+      },
+    })
+
+    const failure = await api('/api/profile/resume', {
+      method: 'PUT',
+      file: new File(['x'], 'cv.pdf'),
+    }).catch((error: unknown) => error)
+
+    expect(failure).toBeInstanceOf(ApiError)
+    expect((failure as ApiError).code).toBe('storage_unavailable')
+    expect((failure as ApiError).message).toBe('Something went wrong. Please try again.')
+    expect((failure as ApiError).message).not.toContain('bucket')
+  })
+
+  it('has no code for a server error that sends none', async () => {
+    stubFetch({ 'GET /api/things': { status: 500 } })
+
+    const failure = await api('/api/things').catch((error: unknown) => error)
+
+    expect((failure as ApiError).code).toBeUndefined()
+  })
+})

@@ -59,6 +59,8 @@ export interface BackendCall {
   path: string
   headers: Record<string, string>
   body: unknown
+  /** What was handed to fetch as the body, untouched (a File, for an upload). */
+  rawBody?: BodyInit | null
 }
 
 /**
@@ -76,6 +78,7 @@ export function stubBackend(handler: (call: BackendCall) => Reply) {
         path,
         headers: (init?.headers ?? {}) as Record<string, string>,
         body: typeof init?.body === 'string' ? JSON.parse(init.body) : undefined,
+        rawBody: init?.body,
       }
       calls.push(call)
       const { status, body } = handler(call)

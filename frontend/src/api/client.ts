@@ -40,14 +40,22 @@ export function messageOf(error: unknown): string {
 interface RequestOptions {
   method?: 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE'
   body?: unknown
+  /** A file to send as the whole request body, as it is (the resume upload). */
+  file?: Blob
   /** Set for calls where 401 is a normal answer (login with a wrong password, "who am I?"). */
   expectUnauthorized?: boolean
 }
 
 async function errorDetails(response: Response): Promise<{ message: string; code?: string }> {
-  // Never show server error text for a 5xx: it can contain internals.
+  // Never show server error text for a 5xx: it can contain internals. The short code is safe, and
+  // lets a screen say something useful (for example that file storage is down).
   if (response.status >= 500) {
-    return { message: GENERIC_ERROR }
+    try {
+      const body = await response.json()
+      return { message: GENERIC_ERROR, code: typeof body.code === 'string' ? body.code : undefined }
+    } catch {
+      return { message: GENERIC_ERROR }
+    }
   }
   try {
     const body = await response.json()
@@ -67,7 +75,9 @@ async function errorDetails(response: Response): Promise<{ message: string; code
 export async function api<T = void>(path: string, options: RequestOptions = {}): Promise<T> {
   const method = options.method ?? 'GET'
   const headers: Record<string, string> = {}
-  if (options.body !== undefined) {
+  if (options.file !== undefined) {
+    headers['Content-Type'] = 'application/octet-stream' // the server ignores it: it reads the bytes
+  } else if (options.body !== undefined) {
     headers['Content-Type'] = 'application/json'
   }
   // Only requests that change data need the token (the server checks the same rule).
@@ -80,7 +90,12 @@ export async function api<T = void>(path: string, options: RequestOptions = {}):
     response = await fetch(path, {
       method,
       headers,
-      body: options.body === undefined ? undefined : JSON.stringify(options.body),
+      body:
+        options.file !== undefined
+          ? options.file
+          : options.body === undefined
+            ? undefined
+            : JSON.stringify(options.body),
     })
   } catch {
     throw new ApiError(0, UNREACHABLE)
