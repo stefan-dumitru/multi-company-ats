@@ -2,6 +2,7 @@
 
 from app.models.audit_log import AuditLog
 from app.models.background_job import BackgroundJob, JobStatus
+from app.models.candidate_profile import CandidateProfile
 from app.models.company import Company
 from app.models.department import Department
 from app.models.invitation import Invitation
@@ -16,6 +17,7 @@ __all__ = [
     "STAFF_ROLES",
     "AuditLog",
     "BackgroundJob",
+    "CandidateProfile",
     "Company",
     "Department",
     "Invitation",

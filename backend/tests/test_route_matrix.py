@@ -38,6 +38,7 @@ from tests.factories import make_company, make_user
 ADMIN_ONLY = frozenset({Role.COMPANY_ADMIN})
 ADMIN_AND_RECRUITER = frozenset({Role.COMPANY_ADMIN, Role.RECRUITER})
 EVERY_LOGGED_IN_ROLE = frozenset(Role)
+CANDIDATE_ONLY = frozenset({Role.CANDIDATE})
 # None means "public": anyone, logged in or not.
 POLICY: dict[str, frozenset[Role] | None] = {
     "GET /health": None,
@@ -67,6 +68,9 @@ POLICY: dict[str, frozenset[Role] | None] = {
     "DELETE /api/departments/{department_id}": ADMIN_ONLY,
     "GET /api/public/jobs": None,
     "GET /api/public/jobs/{job_id}": None,
+    "POST /api/candidates": None,
+    "GET /api/profile": CANDIDATE_ONLY,
+    "PATCH /api/profile": CANDIDATE_ONLY,
     "GET /api/recruiters": ADMIN_AND_RECRUITER,
     "GET /api/jobs": ADMIN_AND_RECRUITER,
     "POST /api/jobs": ADMIN_AND_RECRUITER,

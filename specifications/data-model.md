@@ -74,6 +74,11 @@ above.
   `is_discoverable` (talent pool opt-in, default false), `discoverable_since`. Other profile
   fields (headline, links, work history): [TODO].
 - **Relationships:** one-to-one with `User`; references `File`.
+- **Built so far:** `phone` (at most 30 characters: digits, spaces and `+ ( ) - .`) and
+  `location` (at most 200). The profile row is created together with the account, or on first
+  use if an account somehow has none. `current_resume_file_id` arrives with the resume upload and
+  `is_discoverable` / `discoverable_since` with the talent pool (Phase 9), each as an additive
+  migration.
 - **Lifecycle:** Created at registration. Editable by the candidate only. Personal fields erased
   on anonymization.
 - **Delete/cascade semantics:** Follows the `User`. Replacing the resume creates a new `File`;
