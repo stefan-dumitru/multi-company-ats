@@ -3,22 +3,10 @@ import type { FormEvent } from 'react'
 import { Link, Navigate, useLocation } from 'react-router'
 import { messageOf } from '@/api/client'
 import { useAuth } from '@/auth/AuthContext'
+import { safeReturnPath } from '@/auth/returnPath'
 import AuthCard from '@/components/AuthCard'
 import FormField from '@/components/FormField'
 import { Button } from '@/components/ui/button'
-
-/**
- * Where to send the user after logging in: the page they were trying to open, if it is a page of
- * this app. Anything else ("//evil.example", "https://...") would make the login page a way to
- * bounce people to another site, so it is ignored.
- */
-function returnPath(routerState: unknown): string {
-  const from = (routerState as { from?: unknown } | null)?.from
-  if (typeof from === 'string' && from.startsWith('/') && !from.startsWith('//')) {
-    return from
-  }
-  return '/'
-}
 
 export default function LoginPage() {
   const { state, login } = useAuth()
@@ -32,7 +20,7 @@ export default function LoginPage() {
     return <p role="status">Loading…</p>
   }
   if (state.status === 'authenticated') {
-    return <Navigate to={returnPath(location.state)} replace />
+    return <Navigate to={safeReturnPath(location.state, '/')} replace />
   }
 
   async function handleSubmit(event: FormEvent) {
