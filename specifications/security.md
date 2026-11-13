@@ -147,6 +147,8 @@ The per-project choices:
   certification, malware scanning of resumes [TODO], advanced bot protection. Known and accepted
   until the phase that fixes them:
   - Company signup is open and not rate limited, so someone could create many companies (Phase 2).
+  - Candidate registration (`POST /api/candidates`) is open and not rate limited, like company
+    signup, so someone could create many candidate accounts (Phase 5).
   - The public job routes (`/api/public/jobs`) need no login and are not rate limited. They are
     bounded instead: keywords and location are at most 200 characters, a page holds at most 100
     rows, the page number is capped, and the query is a single indexed lookup. Only open jobs

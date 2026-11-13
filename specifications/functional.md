@@ -206,6 +206,23 @@ The roles table above says *what* each role can do. This section says *how*.
   the location is a plain character. Only a fixed set of fields is shown (never who works on the
   job). Candidates cannot apply yet (Phase 5).
 
+### Register as a candidate and keep a profile
+
+- **Role(s):** Anyone (registers); Candidate (profile).
+- **Trigger:** "Register" as a job seeker; the Profile page.
+- **Main flow:** The visitor enters their name, email and a password. The app creates a candidate
+  account (no company) and its profile in one transaction, queues the verification email, and logs
+  them in with limited access, exactly like company signup. Until the email is verified the candidate
+  can see who they are, log out and ask for a new link, and nothing else. A verified candidate reads
+  and changes their own profile: name, phone and location (resume: see below).
+- **Rules & edge cases:** The same words are used whether or not the email is already taken (a
+  company staff address counts too: one email is one account), a weak password (under 12
+  characters) is refused, and the request cannot choose a role or a company. Phone is up to 30
+  characters of digits, spaces and `+ ( ) - .`; location is up to 200 characters; sending null or
+  blanks clears either; leaving a field out leaves it alone. The email address cannot be changed
+  here. A candidate can only ever reach their own profile: no route takes a candidate id. Candidate
+  sessions last 7 days idle and 30 days in all (staff: 30 minutes and 12 hours).
+
 ### Candidate applies to a job
 
 - **Role(s):** Candidate.

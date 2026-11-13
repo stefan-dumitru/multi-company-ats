@@ -242,6 +242,12 @@ NOT_COMPANY_SCOPED = {
     "set of fields (see tests/test_public_jobs.py)",
     "GET /api/public/jobs/{job_id}": "public by design: an id returns the job only if it is "
     "OPEN, and the same 404 as for an unknown id otherwise (see tests/test_public_jobs.py)",
+    "POST /api/candidates": "public; creates a new candidate account (no company); takes no "
+    "existing id",
+    "GET /api/profile": "acts on the caller's own profile only; takes no id (see "
+    "test_one_candidate_cannot_change_another)",
+    "PATCH /api/profile": "acts on the caller's own profile only; takes no id (see "
+    "test_one_candidate_cannot_change_another)",
     "POST /api/jobs": "creates in the caller's own company; the department must be the caller's "
     "own (see test_a_department_of_another_company_unknown_or_archived_cannot_be_used)",
     "POST /api/departments": "creates in the caller's own company; the company comes from the "
