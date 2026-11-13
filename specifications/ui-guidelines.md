@@ -31,7 +31,7 @@ in that feature's Plan Mode session, informed by this file — not spec'd upfron
 ## Information Architecture
 
 - Top-level navigation structure: a header with the app name. Visitors see "Find jobs", "Log in"
-  and "Register your company"; a logged-in user sees their name, "Log out" and the links for their
+  "Sign up as a candidate" and "Register your company"; a logged-in user sees their name, "Log out" and the links for their
   role (`navItemsFor` in `src/auth/navigation.ts`, one place to change).
 - How roles (from functional.md) map to what nav/screens they see:
   - Candidate: Jobs (search), My applications, Profile (resume, talent pool opt-in, delete

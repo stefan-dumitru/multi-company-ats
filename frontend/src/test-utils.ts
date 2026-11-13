@@ -109,6 +109,17 @@ export const adminUser: User = {
 
 export const unverifiedAdmin: User = { ...adminUser, email_verified_at: null }
 
+export const candidateUser: User = {
+  id: 'u-cand',
+  email: 'cara@example.test',
+  full_name: 'Cara Candidate',
+  role: 'candidate',
+  company_id: null,
+  email_verified_at: '2026-01-01T09:00:00Z',
+}
+
+export const unverifiedCandidate: User = { ...candidateUser, email_verified_at: null }
+
 export const recruiterUser: User = {
   id: 'u-rec',
   email: 'rae@acme.test',

@@ -10,6 +10,8 @@ interface FormFieldProps {
   autoComplete?: string
   /** A convenience for the typist; the server enforces the real limit. */
   maxLength?: number
+  /** Fields are required unless this says otherwise. */
+  required?: boolean
   /** Help shown under the field and read out by screen readers with it. */
   hint?: string
 }
@@ -23,6 +25,7 @@ export default function FormField({
   type = 'text',
   autoComplete,
   maxLength,
+  required = true,
   hint,
 }: FormFieldProps) {
   const hintId = hint ? `${id}-hint` : undefined
@@ -37,7 +40,7 @@ export default function FormField({
         autoComplete={autoComplete}
         maxLength={maxLength}
         aria-describedby={hintId}
-        required
+        required={required}
       />
       {hint && (
         <p id={hintId} className="text-sm text-muted-foreground">

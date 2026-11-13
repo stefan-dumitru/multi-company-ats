@@ -54,6 +54,9 @@ export default function Layout() {
               <Link to="/login" className="underline-offset-4 hover:underline">
                 Log in
               </Link>
+              <Link to="/register/candidate" className="underline-offset-4 hover:underline">
+                Sign up as a candidate
+              </Link>
               <Link to="/register" className="underline-offset-4 hover:underline">
                 Register your company
               </Link>
