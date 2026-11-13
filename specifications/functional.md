@@ -214,13 +214,17 @@ The roles table above says *what* each role can do. This section says *how*.
   account (no company) and its profile in one transaction, queues the verification email, and logs
   them in with limited access, exactly like company signup. Until the email is verified the candidate
   can see who they are, log out and ask for a new link, and nothing else. A verified candidate reads
-  and changes their own profile: name, phone and location (resume: see below).
+  and changes their own profile: name, phone, location and resume.
 - **Rules & edge cases:** The same words are used whether or not the email is already taken (a
   company staff address counts too: one email is one account), a weak password (under 12
   characters) is refused, and the request cannot choose a role or a company. Phone is up to 30
   characters of digits, spaces and `+ ( ) - .`; location is up to 200 characters; sending null or
   blanks clears either; leaving a field out leaves it alone. The email address cannot be changed
-  here. A candidate can only ever reach their own profile: no route takes a candidate id. Candidate
+  here. The resume is a PDF or a Word (.docx) file of at most 5 MB; its type is read from the file
+  itself, a new upload replaces the old one (an old file that no application uses is removed in
+  the background), at most 5 uploads are allowed per hour, and when storage is down the upload
+  fails with a clear message and nothing changes. A candidate can only ever reach their own
+  profile and resume: no route takes a candidate id. Candidate
   sessions last 7 days idle and 30 days in all (staff: 30 minutes and 12 hours).
 
 ### Candidate applies to a job

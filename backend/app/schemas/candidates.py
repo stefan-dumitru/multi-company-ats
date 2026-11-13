@@ -1,4 +1,5 @@
 import re
+from datetime import datetime
 from typing import Self
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
@@ -59,8 +60,17 @@ class UpdateProfileRequest(BaseModel):
         return {name: getattr(self, name) for name in self.model_fields_set}
 
 
+class ResumeOut(BaseModel):
+    """What the candidate sees about their resume. Never the storage key."""
+
+    filename: str
+    size_bytes: int
+    uploaded_at: datetime
+
+
 class ProfileOut(BaseModel):
     full_name: str
     email: str
     phone: str | None
     location: str | None
+    resume: ResumeOut | None
