@@ -19,9 +19,14 @@ export function navItemsFor(role: Role): NavItem[] {
       ]
     case 'recruiter':
       return [{ label: 'My jobs', to: '/manage/jobs' }]
-    case 'interviewer':
     case 'candidate':
-      // Their pages arrive with the phases that build jobs, interviews and applications.
+      // "My applications" joins when applying exists.
+      return [
+        { label: 'Jobs', to: '/jobs' },
+        { label: 'Profile', to: '/profile' },
+      ]
+    case 'interviewer':
+      // Their pages arrive with the phase that builds interviews.
       return []
   }
 }
@@ -31,5 +36,8 @@ export function navItemsFor(role: Role): NavItem[] {
  * invite their team. One rule here, so two redirects can never disagree.
  */
 export function landingPathFor(role: Role): string {
-  return role === 'company_admin' ? '/users' : '/'
+  if (role === 'company_admin') return '/users'
+  // A new candidate has one job to do first: confirm their email, which their profile page asks for.
+  if (role === 'candidate') return '/profile'
+  return '/'
 }

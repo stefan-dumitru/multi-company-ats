@@ -48,6 +48,16 @@ export default function HomePage() {
         <Link to="/jobs" className="text-primary underline underline-offset-4">
           Browse open jobs
         </Link>
+        {state.status === 'anonymous' && (
+          <>
+            {' '}
+            or{' '}
+            <Link to="/register/candidate" className="text-primary underline underline-offset-4">
+              sign up as a candidate
+            </Link>
+            .
+          </>
+        )}
       </p>
       <HealthStatus />
     </section>

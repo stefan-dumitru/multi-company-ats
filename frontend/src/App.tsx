@@ -13,6 +13,8 @@ import PublicJobPage from '@/pages/PublicJobPage'
 import PublicJobsPage from '@/pages/PublicJobsPage'
 import NotFoundPage from '@/pages/NotFoundPage'
 import RegisterCompanyPage from '@/pages/RegisterCompanyPage'
+import ProfilePage from '@/pages/ProfilePage'
+import RegisterCandidatePage from '@/pages/RegisterCandidatePage'
 import ResetPasswordPage from '@/pages/ResetPasswordPage'
 import UsersPage from '@/pages/UsersPage'
 import VerifyEmailPage from '@/pages/VerifyEmailPage'
@@ -24,6 +26,7 @@ export default function App() {
         <Route index element={<HomePage />} />
         <Route path="login" element={<LoginPage />} />
         <Route path="register" element={<RegisterCompanyPage />} />
+        <Route path="register/candidate" element={<RegisterCandidatePage />} />
         <Route path="accept-invitation" element={<AcceptInvitationPage />} />
         <Route path="verify-email" element={<VerifyEmailPage />} />
         <Route path="forgot-password" element={<ForgotPasswordPage />} />
@@ -31,6 +34,9 @@ export default function App() {
         <Route path="jobs" element={<PublicJobsPage />} />
         <Route path="jobs/:jobId" element={<PublicJobPage />} />
         <Route element={<RequireAuth />}>
+          <Route element={<RequireRole roles={['candidate']} />}>
+            <Route path="profile" element={<ProfilePage />} />
+          </Route>
           <Route element={<RequireRole roles={['company_admin', 'recruiter']} />}>
             <Route path="manage/jobs" element={<JobsPage />} />
             <Route path="manage/jobs/new" element={<NewJobPage />} />

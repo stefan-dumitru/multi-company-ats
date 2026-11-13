@@ -14,9 +14,16 @@ describe('navItemsFor', () => {
     expect(navItemsFor('recruiter')).toEqual([{ label: 'My jobs', to: '/manage/jobs' }])
   })
 
-  it.each(['interviewer', 'candidate'] as const)('shows nothing the %s cannot use yet', (role) => {
+  it('gives candidates the job search and their profile', () => {
+    expect(navItemsFor('candidate')).toEqual([
+      { label: 'Jobs', to: '/jobs' },
+      { label: 'Profile', to: '/profile' },
+    ])
+  })
+
+  it('shows nothing the interviewer cannot use yet', () => {
     // Hiding links is cosmetic: the server decides who may do what.
-    expect(navItemsFor(role)).toEqual([])
+    expect(navItemsFor('interviewer')).toEqual([])
   })
 })
 
@@ -25,7 +32,11 @@ describe('landingPathFor', () => {
     expect(landingPathFor('company_admin')).toBe('/users')
   })
 
-  it.each(['recruiter', 'interviewer', 'candidate'] as const)(
+  it('sends a new candidate to their profile, which asks them to confirm their email', () => {
+    expect(landingPathFor('candidate')).toBe('/profile')
+  })
+
+  it.each(['recruiter', 'interviewer'] as const)(
     'sends a %s to the home page until they have a page of their own',
     (role) => {
       expect(landingPathFor(role)).toBe('/')

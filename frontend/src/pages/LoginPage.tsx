@@ -78,6 +78,10 @@ export default function LoginPage() {
       </p>
       <p className="text-sm text-muted-foreground">
         New here?{' '}
+        <Link to="/register/candidate" className="text-primary underline underline-offset-4">
+          Sign up as a candidate
+        </Link>{' '}
+        or{' '}
         <Link to="/register" className="text-primary underline underline-offset-4">
           Register your company
         </Link>
