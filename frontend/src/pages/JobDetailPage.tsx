@@ -7,6 +7,7 @@ import { useAuth } from '@/auth/AuthContext'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { formatDate } from '@/lib/format'
+import ApplicantsSection from './jobs/ApplicantsSection'
 import JobActions from './jobs/JobActions'
 import JobForm from './jobs/JobForm'
 import type { JobFormValues } from './jobs/JobForm'
@@ -148,6 +149,9 @@ export default function JobDetailPage() {
           </p>
         )}
       </div>
+
+      {/* A draft has not been seen by any candidate, so nobody can have applied. */}
+      {current.status !== 'draft' && <ApplicantsSection jobId={current.id} />}
 
       <section aria-labelledby="details-heading" className="space-y-4">
         <h2 id="details-heading" className="text-lg font-semibold">
