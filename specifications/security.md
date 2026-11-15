@@ -161,6 +161,10 @@ The per-project choices:
   guessable id. Second: leaking evaluations that must stay hidden (blind scores, internal notes,
   rejection comments) to the wrong role. Third: account takeover through account-linking or
   invitation/reset token flaws.
+- Hiring data that stays internal (Phase 6): the rejection reason and comment, and notes, are
+  readable by company staff only (never candidates or interviewers), never written to the audit
+  log or to an email, and an application can only be changed by the recruiters assigned to its
+  job, with the version they were looking at (a stale change is refused).
 - Anything explicitly out of scope for launch (accepted risk, revisit later): MFA, formal GDPR
   certification, malware scanning of resumes [TODO], advanced bot protection. Known and accepted
   until the phase that fixes them:

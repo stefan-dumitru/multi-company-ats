@@ -64,7 +64,7 @@ how). Verified in Phase 0 unless marked otherwise.
 
 ## Project Structure
 
-What exists after Phase 5, and (marked *planned*) what later phases add:
+What exists after Phase 6, and (marked *planned*) what later phases add:
 
 - `backend/app/` — FastAPI app. Today: `main.py` (wires the routers; `/health`, `/ready`), `config.py`
   (all environment settings, in one place), `db.py` (engine and session), `frontend.py` (serves
@@ -81,7 +81,9 @@ What exists after Phase 5, and (marked *planned*) what later phases add:
   `heartbeat.py`, `status.py`, `maintenance.py`: the hourly purge; `python -m app.worker` runs it),
   `migrate.py` (the pre-deploy migration step), `logging.py` (JSON log lines). Candidate and
   application code: `services/candidates.py`, `resumes.py` and `resume_files.py` (type by content),
-  `applications.py` (apply, withdraw, reactivate, and what staff see of them). *Planned:*
+  `applications.py` (apply, withdraw, reactivate, and what staff see of them), `pipeline.py` (what
+  recruiters do: read, move forward, reject; the version and row-lock rule lives there) and
+  `notes.py`. *Planned:*
   `integrations/` for Google Calendar.
 - `backend/alembic/` — migrations (`versions/`). `backend/tests/` — pytest, including the route
   gate, role x endpoint matrix and tenant-isolation tests. Adding a route means updating `POLICY`
