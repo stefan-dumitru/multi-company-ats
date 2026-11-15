@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link } from 'react-router'
 import type { Page } from '@/api/types'
 import { useResource } from '@/api/useResource'
 import Pager from '@/components/Pager'
@@ -56,7 +57,14 @@ export default function ApplicantsSection({ jobId }: { jobId: string }) {
               <li key={applicant.id} className="space-y-2 rounded-lg border p-4">
                 <div className="flex flex-wrap items-start justify-between gap-2">
                   <div className="min-w-0 space-y-1">
-                    <p className="font-medium break-words">{applicant.candidate_name}</p>
+                    <p className="font-medium break-words">
+                      <Link
+                        to={`/manage/applications/${applicant.id}`}
+                        className="underline-offset-4 hover:underline"
+                      >
+                        {applicant.candidate_name}
+                      </Link>
+                    </p>
                     <p className="text-sm break-all text-muted-foreground">
                       {applicant.candidate_email}
                     </p>

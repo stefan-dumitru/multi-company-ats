@@ -126,6 +126,15 @@ describe('JobDetailPage: applicants', () => {
     expect(cara.getByText(`Applied ${formatDate('2026-11-10T09:00:00Z')}`)).toBeInTheDocument()
   })
 
+  it('links each name to that application’s own page', async () => {
+    startServer({ applicants: [applicant()] })
+    await openJob()
+
+    const link = await screen.findByRole('link', { name: 'Cara Candidate' })
+
+    expect(link).toHaveAttribute('href', '/manage/applications/a1')
+  })
+
   it('offers each resume as a download that opens in a new tab', async () => {
     startServer({ applicants: [applicant()] })
     await openJob()
