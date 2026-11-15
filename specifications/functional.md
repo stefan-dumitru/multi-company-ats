@@ -302,7 +302,10 @@ The roles table above says *what* each role can do. This section says *how*.
     with its internal reason and comment, and the history. Assigned recruiters get one "Move to
     <next stage>" button and a Reject dialog (reason list, comment required for `other`); company
     admins see the page read-only. If someone else changed the application first, the page shows the
-    conflict message with a Reload button and changes nothing.
+    conflict message with a Reload button and changes nothing. The same page has a Notes section:
+    the notes newest first (author, date, text with its line breaks, paged), and for recruiters a
+    box to add one (blank notes cannot be sent, 4000 characters at most); it loads on its own, so a
+    failure there does not break the rest of the page.
   - Closing a job does not touch its in-flight applications; they continue to a decision.
 
 ### Schedule an interview

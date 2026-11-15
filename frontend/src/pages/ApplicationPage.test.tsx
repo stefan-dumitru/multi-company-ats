@@ -63,6 +63,9 @@ function startServer(options: { user?: User; application?: ApplicationDetail | n
     }
     if (key === 'GET /health') return { status: 200, body: { status: 'ok' } }
     if (key === 'GET /api/auth/me') return { status: 200, body: sessionFor(user) }
+    if (key === 'GET /api/applications/a1/notes') {
+      return { status: 200, body: { items: [], total: 0, page: 1, page_size: 20 } }
+    }
     const match = /^\/api\/applications\/([^/]+)(?:\/(advance|reject))?$/.exec(url.pathname)
     if (!match) throw new Error(`Unplanned request in test: ${key}`)
     const application = state.application
@@ -225,7 +228,7 @@ describe('ApplicationPage', () => {
     startServer({ application: detail({ stage: 'hired', next_stage: null }) })
     await openApplication()
 
-    expect(within(screen.getByRole('main')).queryByRole('button')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /move to|reject/i })).not.toBeInTheDocument()
   })
 
   it('offers a company admin everything to read and nothing to change', async () => {
@@ -253,7 +256,7 @@ describe('ApplicationPage', () => {
     })
     await openApplication()
 
-    expect(within(screen.getByRole('main')).queryByRole('button')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /move to|reject/i })).not.toBeInTheDocument()
     expect(screen.getAllByText(label).length).toBeGreaterThan(0)
   })
 
