@@ -6,6 +6,7 @@ import { useAuth } from '@/auth/AuthContext'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { formatDate } from '@/lib/format'
+import NotesSection from './application/NotesSection'
 import RejectDialog from './application/RejectDialog'
 import StageProgress from './application/StageProgress'
 import { REJECTION_REASONS } from './application/types'
@@ -196,6 +197,8 @@ export default function ApplicationPage() {
           ))}
         </ol>
       </section>
+
+      <NotesSection applicationId={current.id} canWrite={canDecide} />
 
       <RejectDialog
         open={rejecting}
