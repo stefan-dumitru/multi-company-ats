@@ -64,7 +64,7 @@ how). Verified in Phase 0 unless marked otherwise.
 
 ## Project Structure
 
-What exists after Phase 4, and (marked *planned*) what later phases add:
+What exists after Phase 5, and (marked *planned*) what later phases add:
 
 - `backend/app/` — FastAPI app. Today: `main.py` (wires the routers; `/health`, `/ready`), `config.py`
   (all environment settings, in one place), `db.py` (engine and session), `frontend.py` (serves
@@ -76,11 +76,13 @@ What exists after Phase 4, and (marked *planned*) what later phases add:
   without a user, limited to open jobs), `pagination.py` (the one paging rule: `page`,
   `page_size`, `{items, total, page, page_size}`), `responses.py` (the one way a resume is
   delivered, for candidates and staff alike), `emails/` (one template
-  per email, registered by name), `integrations/` (`smtp.py`), `worker/` (`queue.py`: the
+  per email, registered by name), `integrations/` (`smtp.py`; `storage.py`: the only code that talks to the S3 bucket), `worker/` (`queue.py`: the
   Postgres-backed job queue; `runner.py`: the loop; `handlers.py`: job type to function;
   `heartbeat.py`, `status.py`, `maintenance.py`: the hourly purge; `python -m app.worker` runs it),
-  `migrate.py` (the pre-deploy migration step), `logging.py` (JSON log lines). *Planned:*
-  `integrations/` for S3 and Google Calendar.
+  `migrate.py` (the pre-deploy migration step), `logging.py` (JSON log lines). Candidate and
+  application code: `services/candidates.py`, `resumes.py` and `resume_files.py` (type by content),
+  `applications.py` (apply, withdraw, reactivate, and what staff see of them). *Planned:*
+  `integrations/` for Google Calendar.
 - `backend/alembic/` — migrations (`versions/`). `backend/tests/` — pytest, including the route
   gate, role x endpoint matrix and tenant-isolation tests. Adding a route means updating `POLICY`
   in `test_route_matrix.py` and classifying it in `test_tenant_isolation.py`.

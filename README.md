@@ -10,7 +10,7 @@ accepts pull requests whose checks pass.
 
 ## Status
 
-Phases 0 to 4 are done:
+Phases 0 to 5 are done:
 
 - **Phase 0:** a FastAPI backend, a React app, one Docker image that serves both, and the pull
   request pipeline.
@@ -28,7 +28,12 @@ Phases 0 to 4 are done:
   recruiters create, edit, publish and close jobs (a recruiter sees only the jobs assigned to
   them, a job always keeps a recruiter while it is open, and two people editing the same job
   cannot overwrite each other). Anyone can search open jobs by keyword and location without
-  logging in. Applications start in Phase 5.
+  logging in.
+- **Phase 5:** candidates, resumes and applications. A candidate registers, keeps a profile with a
+  resume (PDF or Word, checked by content, kept in a private bucket and only ever served through
+  the app), applies to an open job, follows their applications and can withdraw or reactivate
+  one. Admins and recruiters see who applied to the jobs they can see and download the resume
+  each person applied with; another company's staff get "not found".
 
 - Staging: https://multi-company-ats-staging.up.railway.app
 - Production: https://multi-company-ats-production.up.railway.app
