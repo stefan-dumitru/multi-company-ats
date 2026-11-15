@@ -5,6 +5,7 @@ from app.models.application import (
     Application,
     ApplicationStage,
     ApplicationStageHistory,
+    RejectionReason,
 )
 from app.models.audit_log import AuditLog
 from app.models.background_job import BackgroundJob, JobStatus
@@ -25,6 +26,7 @@ __all__ = [
     "STAFF_ROLES",
     "Application",
     "ApplicationStage",
+    "RejectionReason",
     "ApplicationStageHistory",
     "AuditLog",
     "BackgroundJob",

@@ -18,6 +18,7 @@ from app.models import (
     Job,
     JobRecruiter,
     PostingStatus,
+    RejectionReason,
     Role,
     User,
 )
@@ -161,6 +162,12 @@ def make_application(
         stage=stage,
         stage_before_withdrawal=ApplicationStage.APPLIED
         if stage == ApplicationStage.WITHDRAWN
+        else None,
+        rejected_from_stage=ApplicationStage.APPLIED
+        if stage == ApplicationStage.REJECTED
+        else None,
+        rejection_reason=RejectionReason.SKILLS_MISMATCH
+        if stage == ApplicationStage.REJECTED
         else None,
         created_at=now,
         updated_at=now,
