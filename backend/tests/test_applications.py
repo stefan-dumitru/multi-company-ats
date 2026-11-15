@@ -381,11 +381,9 @@ def test_the_request_holds_the_job_and_nothing_else(
 def applied(
     db: Session, world: World, stage: ApplicationStage, job: Job | None = None
 ) -> Application:
-    application = make_application(
-        db, job=job or world.open_job, candidate=world.cara, stage=ApplicationStage.APPLIED
-    )
-    if stage != ApplicationStage.APPLIED:
-        application.stage = stage
+    # The factory builds the stage's own bookkeeping too (a rejection carries its reason), which
+    # the database now requires.
+    application = make_application(db, job=job or world.open_job, candidate=world.cara, stage=stage)
     db.commit()
     return application
 
