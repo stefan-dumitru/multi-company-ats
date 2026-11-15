@@ -1,0 +1,280 @@
+"""A candidate's applications: applying, withdrawing, reactivating, and the list they see.
+
+Every function takes the candidate and only ever touches rows with their id on them, so another
+candidate's application is "not found", never "forbidden". Each change writes its history row, its
+audit row and (for applying) the queued email in the same transaction; the caller commits.
+"""
+
+import uuid
+from dataclasses import dataclass
+from datetime import datetime
+
+from sqlalchemy import Select, func, select
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session
+
+from app.models import (
+    ACTIVE_STAGES,
+    Application,
+    ApplicationStage,
+    ApplicationStageHistory,
+    CandidateProfile,
+    Company,
+    File,
+    Job,
+    PostingStatus,
+    User,
+)
+from app.pagination import PageRequest
+from app.services.audit import record_audit
+from app.services.errors import (
+    ApplicationEnded,
+    CannotReactivate,
+    JobNotOpen,
+    NotFoundError,
+    ResumeRequired,
+)
+from app.worker.queue import enqueue
+
+# The unique constraint on (candidate_id, job_id): a clash on it means "already applied".
+DUPLICATE_APPLICATION = "uq_applications_candidate_job"
+
+
+@dataclass
+class ApplyResult:
+    application: Application
+    created: bool  # False when the candidate had already applied and this is that application
+
+
+@dataclass
+class ApplicationView:
+    """An application as the candidate sees it: with the job and company it is for."""
+
+    application: Application
+    job_title: str
+    company_name: str
+    job_is_open: bool
+
+
+def _is_duplicate(error: IntegrityError) -> bool:
+    diagnostics = getattr(error.orig, "diag", None)
+    return getattr(diagnostics, "constraint_name", None) == DUPLICATE_APPLICATION
+
+
+def _own_application_for_job(db: Session, candidate: User, job_id: uuid.UUID) -> Application | None:
+    return db.scalar(
+        select(Application).where(
+            Application.candidate_id == candidate.id, Application.job_id == job_id
+        )
+    )
+
+
+def _resume_to_apply_with(db: Session, candidate: User) -> uuid.UUID:
+    """The id of the resume on file, which this application will snapshot."""
+    profile = db.get(CandidateProfile, candidate.id)
+    if profile is None or profile.current_resume_file_id is None:
+        raise ResumeRequired
+    file = db.get(File, profile.current_resume_file_id)
+    if file is None or file.deleted_at is not None:
+        raise ResumeRequired
+    return file.id
+
+
+def _record_stage_change(
+    db: Session,
+    candidate: User,
+    application: Application,
+    *,
+    action: str,
+    old_stage: ApplicationStage | None,
+    now: datetime,
+) -> None:
+    """The history row and the audit row for a change that has just been made."""
+    db.add(
+        ApplicationStageHistory(
+            application_id=application.id,
+            from_stage=old_stage,
+            to_stage=application.stage,
+            changed_by=candidate.id,
+            changed_at=now,
+        )
+    )
+    record_audit(
+        db,
+        actor=candidate,
+        company_id=application.company_id,  # a candidate has none: file it under the job's company
+        action=action,
+        entity_type="application",
+        entity_id=application.id,
+        old_value=None if old_stage is None else {"stage": old_stage.value},
+        new_value={"stage": application.stage.value},
+        now=now,
+    )
+
+
+def apply_to_job(db: Session, candidate: User, job_id: uuid.UUID, now: datetime) -> ApplyResult:
+    """Apply to an open job with the resume on file.
+
+    Applying again returns the existing application (a double click or a retry is not an error).
+    A draft or unknown job is "not found"; a closed one is `JobNotOpen`; no resume is
+    `ResumeRequired`.
+    """
+    existing = _own_application_for_job(db, candidate, job_id)
+    if existing is not None:
+        return ApplyResult(existing, created=False)
+
+    job = db.get(Job, job_id)
+    if job is None or job.status == PostingStatus.DRAFT:
+        raise NotFoundError  # a draft must look exactly like a job that does not exist
+    if job.status != PostingStatus.OPEN:
+        raise JobNotOpen
+    resume_id = _resume_to_apply_with(db, candidate)
+
+    application = Application(
+        job_id=job.id,
+        company_id=job.company_id,
+        candidate_id=candidate.id,
+        resume_file_id=resume_id,
+        stage=ApplicationStage.APPLIED,
+        created_at=now,
+        updated_at=now,
+    )
+    try:
+        # A savepoint, so losing a race to the unique constraint does not poison the transaction.
+        with db.begin_nested():
+            db.add(application)
+            db.flush()
+    except IntegrityError as error:
+        if not _is_duplicate(error):
+            raise
+        winner = _own_application_for_job(db, candidate, job_id)
+        if winner is None:
+            raise
+        return ApplyResult(winner, created=False)
+
+    _record_stage_change(
+        db, candidate, application, action="application.created", old_stage=None, now=now
+    )
+    enqueue(
+        db,
+        type="send_email",
+        payload={"template": "application_received", "application_id": str(application.id)},
+        idempotency_key=f"application_received:{application.id}",
+        now=now,
+    )
+    db.flush()
+    return ApplyResult(application, created=True)
+
+
+def _own_application_locked(db: Session, candidate: User, application_id: uuid.UUID) -> Application:
+    """The candidate's own application, row-locked so two changes to it take turns."""
+    application = db.scalar(
+        select(Application)
+        .where(Application.id == application_id, Application.candidate_id == candidate.id)
+        .with_for_update(of=Application)
+        .execution_options(populate_existing=True)
+    )
+    if application is None:
+        raise NotFoundError
+    return application
+
+
+def withdraw_application(
+    db: Session, candidate: User, application_id: uuid.UUID, now: datetime
+) -> Application:
+    """Withdraw from any stage that has not ended. Withdrawing again changes nothing."""
+    application = _own_application_locked(db, candidate, application_id)
+    if application.stage == ApplicationStage.WITHDRAWN:
+        return application
+    if application.stage not in ACTIVE_STAGES:
+        raise ApplicationEnded
+
+    old_stage = application.stage
+    application.stage_before_withdrawal = old_stage  # so reactivating can put it back
+    application.stage = ApplicationStage.WITHDRAWN
+    application.version += 1
+    application.updated_at = now
+    _record_stage_change(
+        db, candidate, application, action="application.withdrawn", old_stage=old_stage, now=now
+    )
+    db.flush()
+    return application
+
+
+def reactivate_application(
+    db: Session, candidate: User, application_id: uuid.UUID, now: datetime
+) -> Application:
+    """Put a withdrawn application back where it was, while its job is still open."""
+    application = _own_application_locked(db, candidate, application_id)
+    if application.stage in (ApplicationStage.HIRED, ApplicationStage.REJECTED):
+        raise CannotReactivate
+    if application.stage != ApplicationStage.WITHDRAWN:
+        return application  # already active: nothing to do
+    job = db.get(Job, application.job_id)
+    if job is None or job.status != PostingStatus.OPEN:
+        raise JobNotOpen
+    restored = application.stage_before_withdrawal
+    assert restored is not None  # the database guarantees it while an application is withdrawn
+
+    application.stage = restored
+    application.stage_before_withdrawal = None
+    application.version += 1
+    application.updated_at = now
+    _record_stage_change(
+        db,
+        candidate,
+        application,
+        action="application.reactivated",
+        old_stage=ApplicationStage.WITHDRAWN,
+        now=now,
+    )
+    db.flush()
+    return application
+
+
+def _view_query() -> Select[Application, str, str, PostingStatus]:
+    return (
+        select(Application, Job.title, Company.name, Job.status)
+        .join(Job, Job.id == Application.job_id)
+        .join(Company, Company.id == Application.company_id)
+    )
+
+
+def application_view(db: Session, candidate: User, application_id: uuid.UUID) -> ApplicationView:
+    """One of the candidate's own applications, with its job and company."""
+    row = db.execute(
+        _view_query().where(
+            Application.id == application_id, Application.candidate_id == candidate.id
+        )
+    ).first()
+    if row is None:
+        raise NotFoundError
+    application, title, company_name, job_status = row
+    return ApplicationView(application, title, company_name, job_status == PostingStatus.OPEN)
+
+
+def list_my_applications(
+    db: Session, candidate: User, page: PageRequest
+) -> tuple[list[ApplicationView], int]:
+    """One page of the candidate's own applications, newest first, and how many there are."""
+    total = (
+        db.scalar(
+            select(func.count())
+            .select_from(Application)
+            .where(Application.candidate_id == candidate.id)
+        )
+        or 0
+    )
+    rows = db.execute(
+        _view_query()
+        .where(Application.candidate_id == candidate.id)
+        # The id breaks ties, so a page never repeats or skips a row between requests.
+        .order_by(Application.created_at.desc(), Application.id)
+        .limit(page.page_size)
+        .offset(page.offset)
+    )
+    views = [
+        ApplicationView(application, title, company_name, job_status == PostingStatus.OPEN)
+        for application, title, company_name, job_status in rows
+    ]
+    return views, total

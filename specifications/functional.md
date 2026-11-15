@@ -231,15 +231,21 @@ The roles table above says *what* each role can do. This section says *how*.
 
 - **Role(s):** Candidate.
 - **Trigger:** "Apply" on an open job page.
-- **Main flow:** Candidate must have a verified account, a complete profile and a resume. Applying
-  creates an `Application` in stage Applied, snapshots the candidate's current resume onto it,
-  writes a stage-history row and an audit entry, and queues two emails (confirmation to the
-  candidate; new-application notice to the job's recruiters: [TODO whether this is in v1]).
+- **Main flow:** Candidate must have a verified email and a resume on file; nothing else in the
+  profile is required (phone and location are optional). Applying creates an `Application` in
+  stage Applied, copies the job's company onto it, snapshots the candidate's current resume onto
+  it, writes a stage-history row and an audit entry (filed under the job's company), and queues
+  one email, the confirmation to the candidate. All of this is one transaction. Recruiters get no
+  email in v1: they see new applications on the job's page.
 - **Rules & edge cases:** One application per candidate per job, enforced by a unique constraint,
-  including after withdrawal or rejection (a double-click or retry returns the existing
-  application, not an error). Job not open (closed/draft) -> rejected. Job closed between page load
-  and submit -> clear message, no application created. Resume missing -> prompt to upload first.
-  Required profile fields: [TODO].
+  including after withdrawal or rejection: applying again returns the existing application (200,
+  not an error) and changes nothing, even if the resume has since gone or the job has since
+  closed. Two simultaneous applications make one (the loser finds the winner's). A closed job ->
+  409 `job_not_open` with a clear message and nothing created; a draft or unknown job -> "not
+  found", exactly like a job that does not exist. No resume on file (or one removed from
+  storage) -> 409 `resume_required`. A later replacement of the resume does not change the
+  snapshot on an existing application. A candidate sees the job, the company and the stage of their
+  own applications, newest first, and nothing a recruiter wrote.
 
 ### Move an application through the pipeline
 
@@ -307,7 +313,13 @@ The roles table above says *what* each role can do. This section says *how*.
   Deleting the account anonymizes personal data (name, email, phone,
   resume files, profile fields) while keeping applications, stage history and the audit log, which
   then show "Deleted candidate".
-- **Rules & edge cases:** Candidates cannot reactivate a rejected application. Deletion revokes all sessions, frees the email address
+- **Rules & edge cases:** Withdrawing is allowed from Applied, Screening, Interview and Offer (not
+  after a hire or a rejection: 409 `application_ended`), remembers the stage, and records history
+  and an audit entry; withdrawing again changes nothing. Reactivating puts the application back in
+  the remembered stage, and only while the job is still open (409 `job_not_open` otherwise);
+  reactivating one that is not withdrawn changes nothing. Both change the application's version and
+  take turns with other changes to the same application (the row is locked). Another candidate's
+  application is "not found". Candidates cannot reactivate a rejected application. Deletion revokes all sessions, frees the email address
   [TODO whether it can be re-registered], and removes the resume file from object storage.
   Anonymization is irreversible. Active applications at deletion time are set to Withdrawn first.
 

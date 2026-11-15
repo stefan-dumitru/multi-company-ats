@@ -94,6 +94,26 @@ class UploadLimitReached(RuleViolation):
     message = "You can upload at most 5 files per hour. Please try again later."
 
 
+class JobNotOpen(RuleViolation):
+    code = "job_not_open"
+    message = "This job is no longer accepting applications."
+
+
+class ResumeRequired(RuleViolation):
+    code = "resume_required"
+    message = "Upload a resume to your profile before applying."
+
+
+class ApplicationEnded(RuleViolation):
+    code = "application_ended"
+    message = "This application has already ended and cannot be withdrawn."
+
+
+class CannotReactivate(RuleViolation):
+    code = "cannot_reactivate"
+    message = "This application cannot be reactivated."
+
+
 class DuplicateDepartmentName(Exception):
     """The company already has a department with this name (ignoring case)."""
 

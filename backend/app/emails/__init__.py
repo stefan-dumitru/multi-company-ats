@@ -6,6 +6,7 @@ ids only; the template loads the recipient and any names itself, and builds link
 code puts in the payload.
 """
 
+from app.emails.application_received import render_application_received
 from app.emails.base import Email, Template
 from app.emails.invitation import render_invitation
 from app.emails.password_changed import render_password_changed
@@ -13,6 +14,7 @@ from app.emails.reset_password import render_reset_password
 from app.emails.verify_email import render_verify_email
 
 TEMPLATES: dict[str, Template] = {
+    "application_received": render_application_received,
     "invitation": render_invitation,
     "verify_email": render_verify_email,
     "reset_password": render_reset_password,

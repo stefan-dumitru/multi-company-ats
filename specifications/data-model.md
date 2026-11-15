@@ -150,6 +150,14 @@ above.
 
 ### Application — Transactional
 
+- **Built so far (Phase 5):** `id`, `job_id`, `company_id`, `candidate_id`, `resume_file_id`,
+  `stage`, `stage_before_withdrawal`, `version`, `created_at`, `updated_at`. The rejection fields
+  arrive with the pipeline (Phase 6). The database enforces: one row per (`candidate_id`,
+  `job_id`); `stage_before_withdrawal` is set exactly while the stage is `withdrawn`, and is
+  always one of applied, screening, interview, offer. `ApplicationStageHistory` is built with it,
+  because applying, withdrawing and reactivating already write it. A file is in use (and must not
+  be deleted from storage) while it is a candidate's current resume or an application's snapshot.
+
 - **Purpose:** One candidate's application to one job, and where it stands.
 - **Key fields:** `id`, `job_id`, `company_id` (copied from the job, to make tenant filtering a
   single-table check), `candidate_id` (`User`), `resume_file_id` (snapshot taken at apply time),

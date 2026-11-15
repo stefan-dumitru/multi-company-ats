@@ -19,6 +19,7 @@ from app.db import get_db
 from app.error_handlers import add_error_handlers
 from app.frontend import mount_frontend
 from app.routers import (
+    applications,
     auth,
     candidates,
     companies,
@@ -48,6 +49,7 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
 
 app = FastAPI(title="ATS", lifespan=lifespan)
 add_error_handlers(app)
+app.include_router(applications.router)
 app.include_router(auth.router)
 app.include_router(candidates.router)
 app.include_router(companies.router)

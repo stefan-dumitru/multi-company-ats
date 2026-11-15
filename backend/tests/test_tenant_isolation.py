@@ -22,8 +22,18 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.auth.sessions import SESSION_COOKIE_NAME, create_session
-from app.models import AuditLog, Department, Invitation, Job, PostingStatus, Role, User
-from tests.factories import make_company, make_job, make_user
+from app.models import (
+    Application,
+    ApplicationStage,
+    AuditLog,
+    Department,
+    Invitation,
+    Job,
+    PostingStatus,
+    Role,
+    User,
+)
+from tests.factories import make_application, make_candidate, make_company, make_job, make_user
 from tests.test_route_matrix import ROUTES
 
 NOT_FOUND = {"detail": "Not found."}
@@ -44,6 +54,8 @@ class Tenant:
     spare_department: Department  # used by nothing, so it can be deleted
     job: Job  # a draft the first recruiter is assigned to
     open_job: Job  # open, same recruiter
+    candidate: User  # has applied to the open job above
+    application: Application
 
 
 def build_tenant(db: Session, name: str) -> Tenant:
@@ -76,6 +88,8 @@ def build_tenant(db: Session, name: str) -> Tenant:
         recruiters=[recruiter],
         status=PostingStatus.OPEN,
     )
+    candidate = make_candidate(db, email=f"cand@{slug}.test")
+    application = make_application(db, job=open_job, candidate=candidate)
     return Tenant(
         name,
         company.id,
@@ -88,6 +102,8 @@ def build_tenant(db: Session, name: str) -> Tenant:
         spare_department,
         job,
         open_job,
+        candidate,
+        application,
     )
 
 
@@ -98,13 +114,18 @@ def world(db: Session) -> tuple[Tenant, Tenant]:
     return a, b
 
 
-def act_as_admin_of(client: TestClient, db: Session, tenant: Tenant) -> str:
-    """Log the client in as this tenant's admin; return the CSRF token."""
-    token, session = create_session(db, tenant.admin, datetime.now(UTC))
+def act_as(client: TestClient, db: Session, tenant: Tenant, actor: str = "admin") -> str:
+    """Log the client in as this tenant's admin, or its candidate; return the CSRF token."""
+    user = tenant.candidate if actor == "candidate" else tenant.admin
+    token, session = create_session(db, user, datetime.now(UTC))
     db.commit()
     client.cookies.clear()
     client.cookies.set(SESSION_COOKIE_NAME, token)
     return session.csrf_token
+
+
+def act_as_admin_of(client: TestClient, db: Session, tenant: Tenant) -> str:
+    return act_as(client, db, tenant, "admin")
 
 
 # ---- the registry: every route is classified ---------------------------------------------
@@ -120,6 +141,8 @@ class IdCase:
     # The body may depend on the tenant whose row is addressed.
     json: dict[str, Any] | Callable[[Tenant], dict[str, Any]] | None = None
     path_param: str = "user_id"
+    # Who makes the request: the tenant's admin, or the tenant's candidate (for candidate routes).
+    actor: str = "admin"
     # For routes with a second id in the path.
     extra_params: Callable[[Tenant], dict[str, uuid.UUID]] | None = None
     ok_status: int = 200
@@ -168,6 +191,18 @@ ID_CASES = [
         lambda t: t.job,
         lambda t: {"user_id": str(t.recruiter2.id)},
         path_param="job_id",
+    ),
+    IdCase(
+        "POST /api/applications/{application_id}/withdraw",
+        lambda t: t.application,
+        path_param="application_id",
+        actor="candidate",
+    ),
+    IdCase(
+        "POST /api/applications/{application_id}/reactivate",
+        lambda t: t.application,
+        path_param="application_id",
+        actor="candidate",
     ),
     IdCase(
         "DELETE /api/jobs/{job_id}/recruiters/{user_id}",
@@ -248,6 +283,10 @@ NOT_COMPANY_SCOPED = {
     "test_one_candidate_cannot_change_another)",
     "PATCH /api/profile": "acts on the caller's own profile only; takes no id (see "
     "test_one_candidate_cannot_change_another)",
+    "POST /api/applications": "a candidate applies as themselves; the job may be any open job "
+    "(see tests/test_applications.py for what is and is not allowed)",
+    "GET /api/applications": "lists the caller's own applications only, found by their candidate "
+    "id (see test_the_list_holds_only_my_applications_newest_first)",
     "PUT /api/profile/resume": "stores the caller's own resume only; takes no id (see "
     "test_each_candidate_gets_only_their_own_resume)",
     "GET /api/profile/resume": "reads the caller's own resume only; takes no id (see "
@@ -312,7 +351,7 @@ def test_company_a_cannot_reach_company_bs_rows_by_id(
     client: TestClient, db: Session, world: tuple[Tenant, Tenant], case: IdCase
 ) -> None:
     a, b = world
-    csrf = act_as_admin_of(client, db, a)
+    csrf = act_as(client, db, a, case.actor)
 
     response = send(client, case, b, csrf)
 
@@ -326,7 +365,7 @@ def test_the_same_request_works_on_the_callers_own_company(
 ) -> None:
     # The control: if this failed, the attack above would be "passing" because of a bad request.
     a, _ = world
-    csrf = act_as_admin_of(client, db, a)
+    csrf = act_as(client, db, a, case.actor)
 
     response = send(client, case, a, csrf)
 
@@ -337,10 +376,9 @@ def test_the_attacks_left_company_b_untouched(
     client: TestClient, db: Session, world: tuple[Tenant, Tenant]
 ) -> None:
     a, b = world
-    csrf = act_as_admin_of(client, db, a)
 
     for case in ID_CASES:
-        send(client, case, b, csrf)
+        send(client, case, b, act_as(client, db, a, case.actor))
 
     db.expire_all()
     for member in (b.admin, b.recruiter, b.interviewer):
@@ -357,6 +395,9 @@ def test_the_attacks_left_company_b_untouched(
     assert stored_department is not None
     assert stored_department.name == f"Engineering of {b.name}"
     assert stored_department.is_archived is False
+    stored_application = db.get(Application, b.application.id)
+    assert stored_application is not None
+    assert stored_application.stage == ApplicationStage.APPLIED and stored_application.version == 1
     audit_for_b = db.scalars(select(AuditLog).where(AuditLog.company_id == b.company_id)).all()
     assert audit_for_b == []
 

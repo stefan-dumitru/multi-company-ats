@@ -1,5 +1,11 @@
 """Every model is imported here so `Base.metadata` knows all tables (Alembic relies on it)."""
 
+from app.models.application import (
+    ACTIVE_STAGES,
+    Application,
+    ApplicationStage,
+    ApplicationStageHistory,
+)
 from app.models.audit_log import AuditLog
 from app.models.background_job import BackgroundJob, JobStatus
 from app.models.candidate_profile import CandidateProfile
@@ -15,7 +21,11 @@ from app.models.user_token import UserToken
 from app.models.worker_heartbeat import WorkerHeartbeat
 
 __all__ = [
+    "ACTIVE_STAGES",
     "STAFF_ROLES",
+    "Application",
+    "ApplicationStage",
+    "ApplicationStageHistory",
     "AuditLog",
     "BackgroundJob",
     "CandidateProfile",

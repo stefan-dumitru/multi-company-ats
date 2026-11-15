@@ -12,11 +12,17 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.integrations import storage
-from app.models import BackgroundJob, CandidateProfile, File, JobStatus, Role
+from app.models import BackgroundJob, CandidateProfile, File, JobStatus, PostingStatus, Role, User
 from app.worker import queue
 from app.worker.handlers import HANDLERS
 from app.worker.runner import run_one_job
-from tests.factories import make_user
+from tests.factories import (
+    make_application,
+    make_company,
+    make_department,
+    make_job,
+    make_user,
+)
 
 NOW = datetime(2026, 1, 5, 9, 0, tzinfo=UTC)
 
@@ -150,3 +156,33 @@ def test_when_storage_is_down_the_job_is_retried_and_the_file_is_not_marked(
     assert job.status == JobStatus.PENDING and job.attempts == 1  # waiting for its next try
     reloaded = db.get(File, file.id)
     assert reloaded is not None and reloaded.deleted_at is None
+
+
+def test_a_file_an_application_was_made_with_is_never_removed(
+    db: Session, storage_bucket: str
+) -> None:
+    # The candidate has since replaced their resume, so this one is no longer "current", but the
+    # recruiters looking at the application still need it.
+    file = stored_file(db)
+    owner = db.get(User, file.owner_user_id)
+    assert owner is not None
+    company = make_company(db, "Acme")
+    admin = make_user(db, email="admin@acme.test", role=Role.COMPANY_ADMIN, company=company)
+    job = make_job(
+        db,
+        company=company,
+        department=make_department(db, company),
+        created_by=admin,
+        status=PostingStatus.OPEN,
+    )
+    make_application(db, job=job, candidate=owner, resume_file=file)
+    db.commit()
+    queue_deletion(db, file.id)
+
+    run_one_job(db, HANDLERS)
+
+    db.expire_all()
+    assert object_exists(file.storage_key)
+    reloaded = db.get(File, file.id)
+    assert reloaded is not None and reloaded.deleted_at is None
+    assert db.scalars(select(BackgroundJob)).one().status == JobStatus.SUCCEEDED
