@@ -47,11 +47,12 @@ def apply(
 
 @router.get("", response_model=Page[MyApplicationOut])
 def list_my_applications(
+    job_id: uuid.UUID | None = None,
     page: PageRequest = Depends(page_request),
     user: User = Depends(require_permission(Permission.CANDIDATE_PROFILE)),
     db: Session = Depends(get_db),
 ) -> Page[MyApplicationOut]:
-    views, total = applications_service.list_my_applications(db, user, page)
+    views, total = applications_service.list_my_applications(db, user, page, job_id=job_id)
     items = [application_out(view) for view in views]
     return Page(items=items, total=total, page=page.page, page_size=page.page_size)
 
