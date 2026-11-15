@@ -223,7 +223,7 @@ describe('ProfilePage: who may open it', () => {
     expect(calls.some((c) => c.path === '/api/profile')).toBe(false)
   })
 
-  it('gives a candidate Jobs and Profile in the menu', async () => {
+  it('gives a candidate Jobs, My applications and Profile in the menu', async () => {
     startServer()
     renderApp('/')
 
@@ -234,6 +234,7 @@ describe('ProfilePage: who may open it', () => {
     ])
     expect(links).toEqual([
       ['Jobs', '/jobs'],
+      ['My applications', '/applications'],
       ['Profile', '/profile'],
     ])
   })

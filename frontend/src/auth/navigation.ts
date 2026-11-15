@@ -20,9 +20,9 @@ export function navItemsFor(role: Role): NavItem[] {
     case 'recruiter':
       return [{ label: 'My jobs', to: '/manage/jobs' }]
     case 'candidate':
-      // "My applications" joins when applying exists.
       return [
         { label: 'Jobs', to: '/jobs' },
+        { label: 'My applications', to: '/applications' },
         { label: 'Profile', to: '/profile' },
       ]
     case 'interviewer':
