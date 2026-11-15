@@ -23,11 +23,14 @@ def record_audit(
     old_value: dict[str, Any] | None,
     new_value: dict[str, Any] | None,
     now: datetime,
+    company_id: uuid.UUID | None = None,
 ) -> None:
+    # `company_id` is for actors that have none (a candidate): the row is filed under the company
+    # the action concerns. Staff actions use the actor's own company.
     # Values hold only what changed (a role, a flag). Never passwords, tokens or personal details.
     db.add(
         AuditLog(
-            company_id=actor.company_id,
+            company_id=company_id if company_id is not None else actor.company_id,
             actor_user_id=actor.id,
             action=action,
             entity_type=entity_type,
