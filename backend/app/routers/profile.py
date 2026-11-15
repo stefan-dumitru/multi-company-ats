@@ -7,11 +7,12 @@ from sqlalchemy.orm import Session
 from app.auth.permissions import Permission, require_permission
 from app.db import get_db
 from app.models import CandidateProfile, File, User
+from app.responses import resume_download
 from app.schemas.candidates import ProfileOut, ResumeOut, UpdateProfileRequest
 from app.services import candidates as candidates_service
 from app.services import resumes as resumes_service
 from app.services.errors import ResumeTooLarge
-from app.services.resume_files import MAX_RESUME_BYTES, content_disposition
+from app.services.resume_files import MAX_RESUME_BYTES
 
 router = APIRouter(prefix="/api/profile", tags=["profile"])
 
@@ -100,15 +101,4 @@ def download_resume(
     db: Session = Depends(get_db),
 ) -> StreamingResponse:
     file, stored = resumes_service.open_current_resume(db, user)
-    return StreamingResponse(
-        stored.chunks,
-        media_type=file.content_type,
-        headers={
-            "Content-Disposition": content_disposition(file.original_filename),
-            "Content-Length": str(stored.size),
-            # The file is only ever downloaded, never shown by the app, and the browser must not
-            # guess a different type from the bytes.
-            "X-Content-Type-Options": "nosniff",
-            "Cache-Control": "private, no-store",
-        },
-    )
+    return resume_download(file, stored)
