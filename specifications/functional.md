@@ -246,6 +246,10 @@ The roles table above says *what* each role can do. This section says *how*.
   storage) -> 409 `resume_required`. A later replacement of the resume does not change the
   snapshot on an existing application. A candidate sees the job, the company and the stage of their
   own applications, newest first, and nothing a recruiter wrote.
+  Staff (an admin for any job of the company, a recruiter for jobs assigned to them) see who applied
+  to a job: name, email, stage and date, newest first, withdrawn ones included and marked. They can
+  download the resume the candidate applied with (the snapshot, not a newer upload). Any job or
+  application outside their reach is "not found". Interviewers see none of this.
 
 ### Move an application through the pipeline
 

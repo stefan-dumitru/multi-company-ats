@@ -25,3 +25,13 @@ class MyApplicationOut(BaseModel):
     applied_at: datetime
     # Whether the job still takes applications: a withdrawn application can only come back if so.
     job_is_open: bool
+
+
+class ApplicantOut(BaseModel):
+    """One application on a job, as staff see it. Never includes the resume itself."""
+
+    id: uuid.UUID
+    candidate_name: str
+    candidate_email: str
+    stage: ApplicationStage
+    applied_at: datetime

@@ -8,6 +8,7 @@ from app.auth.permissions import Permission, require_permission
 from app.db import get_db
 from app.models import PostingStatus, User
 from app.pagination import Page, PageRequest, page_request
+from app.schemas.applications import ApplicantOut
 from app.schemas.jobs import (
     AssignRecruiterRequest,
     CreateJobRequest,
@@ -18,6 +19,7 @@ from app.schemas.jobs import (
     UpdateJobRequest,
     VersionRequest,
 )
+from app.services import applications as applications_service
 from app.services import jobs as jobs_service
 from app.services.jobs import JobDetail, JobSummary
 
@@ -111,6 +113,27 @@ def get_job(
     db: Session = Depends(get_db),
 ) -> JobOut:
     return job_out(jobs_service.job_detail(db, jobs_service.get_job(db, user, job_id)))
+
+
+@router.get("/{job_id}/applications", response_model=Page[ApplicantOut])
+def list_job_applications(
+    job_id: uuid.UUID,
+    page: PageRequest = Depends(page_request),
+    user: User = Depends(require_permission(Permission.VIEW_APPLICATIONS)),
+    db: Session = Depends(get_db),
+) -> Page[ApplicantOut]:
+    applicants, total = applications_service.list_job_applications(db, user, job_id, page)
+    items = [
+        ApplicantOut(
+            id=applicant.application.id,
+            candidate_name=applicant.candidate_name,
+            candidate_email=applicant.candidate_email,
+            stage=applicant.application.stage,
+            applied_at=applicant.application.created_at,
+        )
+        for applicant in applicants
+    ]
+    return Page(items=items, total=total, page=page.page, page_size=page.page_size)
 
 
 @router.patch("/{job_id}", response_model=JobOut)
