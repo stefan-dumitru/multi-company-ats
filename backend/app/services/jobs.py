@@ -1,8 +1,8 @@
 """Data access and rules for jobs. Every function takes the current user.
 
-Who sees which job lives in one place, `_visible_to`: an admin sees every job of their company, a
-recruiter only the jobs assigned to them, everybody else none (default deny). A job outside that
-scope is "not found", never "forbidden".
+Who sees which job lives in one place, `visible_jobs_filter`: an admin sees every job of their
+company, a recruiter only the jobs assigned to them, everybody else none (default deny). A job
+outside that scope is "not found", never "forbidden".
 
 Every change to an existing job first locks its row (`SELECT ... FOR UPDATE`). Two people acting on
 the same job at the same moment therefore take turns, and the second one sees what the first did:
@@ -52,7 +52,7 @@ class JobDetail:
     needs_reassignment: bool
 
 
-def _visible_to(user: User) -> list[ColumnElement[bool]]:
+def visible_jobs_filter(user: User) -> list[ColumnElement[bool]]:
     """The WHERE conditions that restrict a jobs query to what this user may see."""
     # A candidate has no company: `company_id == None` must not match anything.
     if user.company_id is None:
@@ -87,7 +87,7 @@ def _active_recruiter_count(db: Session, job_id: uuid.UUID, *, excluding: uuid.U
 
 
 def get_job(db: Session, user: User, job_id: uuid.UUID, *, lock: bool = False) -> Job:
-    statement = select(Job).where(Job.id == job_id, *_visible_to(user))
+    statement = select(Job).where(Job.id == job_id, *visible_jobs_filter(user))
     if lock:
         # populate_existing: if this row was loaded earlier in the session, take the values the
         # other transaction has just committed, not the stale copy.
@@ -107,7 +107,7 @@ def list_jobs(
     department_id: uuid.UUID | None,
 ) -> tuple[list[JobSummary], int]:
     """One page of the jobs this user may see, newest first, and how many there are in all."""
-    wanted = _visible_to(user)
+    wanted = visible_jobs_filter(user)
     if status is not None:
         wanted.append(Job.status == status)
     if department_id is not None:
