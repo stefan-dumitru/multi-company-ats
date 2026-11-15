@@ -259,20 +259,19 @@ def application_view(db: Session, candidate: User, application_id: uuid.UUID) ->
 
 
 def list_my_applications(
-    db: Session, candidate: User, page: PageRequest
+    db: Session, candidate: User, page: PageRequest, *, job_id: uuid.UUID | None = None
 ) -> tuple[list[ApplicationView], int]:
-    """One page of the candidate's own applications, newest first, and how many there are."""
-    total = (
-        db.scalar(
-            select(func.count())
-            .select_from(Application)
-            .where(Application.candidate_id == candidate.id)
-        )
-        or 0
-    )
+    """One page of the candidate's own applications, newest first, and how many there are.
+
+    With `job_id`, only the application to that job (the job page asks whether you applied).
+    """
+    wanted = [Application.candidate_id == candidate.id]
+    if job_id is not None:
+        wanted.append(Application.job_id == job_id)
+    total = db.scalar(select(func.count()).select_from(Application).where(*wanted)) or 0
     rows = db.execute(
         _view_query()
-        .where(Application.candidate_id == candidate.id)
+        .where(*wanted)
         # The id breaks ties, so a page never repeats or skips a row between requests.
         .order_by(Application.created_at.desc(), Application.id)
         .limit(page.page_size)

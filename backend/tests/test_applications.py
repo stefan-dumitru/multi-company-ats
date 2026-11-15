@@ -605,6 +605,29 @@ def test_the_list_holds_only_my_applications_newest_first(
     assert all(set(item) == VIEW_FIELDS for item in body["items"])
 
 
+def test_the_list_can_be_narrowed_to_one_job(client: TestClient, db: Session, world: World) -> None:
+    # The job page asks "did I already apply here?" this way. Someone else's application for the
+    # same job must never appear, and a job I did not apply to gives an empty list.
+    mine = make_application(db, job=world.open_job, candidate=world.cara)
+    make_application(db, job=world.globex_job, candidate=world.cara)
+    make_application(db, job=world.open_job, candidate=world.dan)
+    db.commit()
+    browser = Browser(client, db, world.cara)
+
+    same_job = browser.get(f"/api/applications?job_id={world.open_job.id}").json()
+    other_job = browser.get(f"/api/applications?job_id={world.closed_job.id}").json()
+
+    assert [item["id"] for item in same_job["items"]] == [str(mine.id)]
+    assert same_job["total"] == 1
+    assert other_job["items"] == [] and other_job["total"] == 0
+
+
+def test_a_job_filter_that_is_not_an_id_is_refused(
+    client: TestClient, db: Session, world: World
+) -> None:
+    assert Browser(client, db, world.cara).get("/api/applications?job_id=oops").status_code == 422
+
+
 def test_the_list_shows_the_job_company_and_whether_it_is_still_open(
     client: TestClient, db: Session, world: World
 ) -> None:
