@@ -1,5 +1,6 @@
 """Helpers that create rows for tests. They flush (so ids exist) but never commit."""
 
+import uuid
 from datetime import UTC, datetime
 
 from sqlalchemy import func, select
@@ -7,8 +8,13 @@ from sqlalchemy.orm import Session
 
 from app.auth.passwords import hash_password
 from app.models import (
+    Application,
+    ApplicationStage,
+    ApplicationStageHistory,
+    CandidateProfile,
     Company,
     Department,
+    File,
     Job,
     JobRecruiter,
     PostingStatus,
@@ -98,3 +104,77 @@ def make_job(
         db.add(JobRecruiter(job_id=job.id, user_id=recruiter.id, added_by=created_by.id))
     db.flush()
     return job
+
+
+def make_resume_file(db: Session, owner: User, name: str = "cv.pdf") -> File:
+    """A resume record (no object in storage: tests that download one put the bytes themselves)."""
+    file = File(
+        owner_user_id=owner.id,
+        storage_key=f"resumes/{uuid.uuid4()}",
+        original_filename=name,
+        content_type="application/pdf",
+        size_bytes=100,
+        uploaded_at=datetime.now(UTC),
+    )
+    db.add(file)
+    db.flush()
+    return file
+
+
+def make_candidate(
+    db: Session,
+    *,
+    email: str,
+    full_name: str = "Test Candidate",
+    resume: bool = True,
+    verified: bool = True,
+) -> User:
+    """A candidate with a profile, and (unless told otherwise) a resume on file."""
+    candidate = make_user(
+        db, email=email, role=Role.CANDIDATE, company=None, full_name=full_name, verified=verified
+    )
+    profile = CandidateProfile(user_id=candidate.id)
+    db.add(profile)
+    db.flush()
+    if resume:
+        profile.current_resume_file_id = make_resume_file(db, candidate).id
+        db.flush()
+    return candidate
+
+
+def make_application(
+    db: Session,
+    *,
+    job: Job,
+    candidate: User,
+    stage: ApplicationStage = ApplicationStage.APPLIED,
+    resume_file: File | None = None,
+) -> Application:
+    """An application as it would exist after applying (and, for `withdrawn`, after withdrawing)."""
+    now = datetime.now(UTC)
+    file = resume_file or make_resume_file(db, candidate)
+    application = Application(
+        job_id=job.id,
+        company_id=job.company_id,
+        candidate_id=candidate.id,
+        resume_file_id=file.id,
+        stage=stage,
+        stage_before_withdrawal=ApplicationStage.APPLIED
+        if stage == ApplicationStage.WITHDRAWN
+        else None,
+        created_at=now,
+        updated_at=now,
+    )
+    db.add(application)
+    db.flush()
+    db.add(
+        ApplicationStageHistory(
+            application_id=application.id,
+            from_stage=None,
+            to_stage=ApplicationStage.APPLIED,
+            changed_by=candidate.id,
+            changed_at=now,
+        )
+    )
+    db.flush()
+    return application

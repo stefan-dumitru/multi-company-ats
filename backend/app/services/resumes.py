@@ -14,7 +14,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.integrations import storage
-from app.models import CandidateProfile, File, User
+from app.models import Application, CandidateProfile, File, User
 from app.services.candidates import get_profile
 from app.services.errors import (
     NotFoundError,
@@ -117,11 +117,18 @@ def open_current_resume(db: Session, user: User) -> tuple[File, storage.StoredOb
 
 
 def file_is_in_use(db: Session, file_id: uuid.UUID) -> bool:
-    """Whether anything still needs this file. Grows when applications start to point at files."""
+    """Whether anything still needs this file.
+
+    Two things do: it is somebody's current resume, or an application snapshotted it (recruiters
+    reading that application need it even after the candidate has uploaded a newer one).
+    """
     current = db.scalar(
         select(CandidateProfile.user_id).where(CandidateProfile.current_resume_file_id == file_id)
     )
-    return current is not None
+    if current is not None:
+        return True
+    snapshotted = db.scalar(select(Application.id).where(Application.resume_file_id == file_id))
+    return snapshotted is not None
 
 
 def delete_file_if_unused(db: Session, file_id: uuid.UUID, now: datetime) -> bool:

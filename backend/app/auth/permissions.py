@@ -29,7 +29,7 @@ class Permission(enum.StrEnum):
     # Create, edit, publish and close jobs, and assign recruiters. Admins and recruiters; a
     # recruiter only reaches the jobs assigned to them (the service enforces that).
     MANAGE_JOBS = "manage_jobs"
-    # A candidate reads and changes their own profile (and, later, resume and applications).
+    # A candidate's own profile, resume and applications.
     CANDIDATE_PROFILE = "candidate_profile"
 
 
