@@ -127,7 +127,8 @@ def world(db: Session, storage_bucket: str) -> tuple[Tenant, Tenant]:
 
 def act_as(client: TestClient, db: Session, tenant: Tenant, actor: str = "admin") -> str:
     """Log the client in as this tenant's admin, or its candidate; return the CSRF token."""
-    user = tenant.candidate if actor == "candidate" else tenant.admin
+    users = {"admin": tenant.admin, "candidate": tenant.candidate, "recruiter": tenant.recruiter}
+    user = users[actor]
     token, session = create_session(db, user, datetime.now(UTC))
     db.commit()
     client.cookies.clear()
@@ -216,6 +217,25 @@ ID_CASES = [
         actor="candidate",
     ),
     IdCase("GET /api/jobs/{job_id}/applications", lambda t: t.open_job, path_param="job_id"),
+    IdCase(
+        "GET /api/applications/{application_id}",
+        lambda t: t.application,
+        path_param="application_id",
+    ),
+    IdCase(
+        "POST /api/applications/{application_id}/advance",
+        lambda t: t.application,
+        {"version": 1},
+        path_param="application_id",
+        actor="recruiter",
+    ),
+    IdCase(
+        "POST /api/applications/{application_id}/reject",
+        lambda t: t.application,
+        {"version": 1, "reason": "skills_mismatch"},
+        path_param="application_id",
+        actor="recruiter",
+    ),
     IdCase(
         "GET /api/applications/{application_id}/resume",
         lambda t: t.application,
@@ -415,6 +435,7 @@ def test_the_attacks_left_company_b_untouched(
     stored_application = db.get(Application, b.application.id)
     assert stored_application is not None
     assert stored_application.stage == ApplicationStage.APPLIED and stored_application.version == 1
+    assert stored_application.rejection_reason is None
     audit_for_b = db.scalars(select(AuditLog).where(AuditLog.company_id == b.company_id)).all()
     assert audit_for_b == []
 

@@ -39,6 +39,7 @@ ADMIN_ONLY = frozenset({Role.COMPANY_ADMIN})
 ADMIN_AND_RECRUITER = frozenset({Role.COMPANY_ADMIN, Role.RECRUITER})
 EVERY_LOGGED_IN_ROLE = frozenset(Role)
 CANDIDATE_ONLY = frozenset({Role.CANDIDATE})
+RECRUITER_ONLY = frozenset({Role.RECRUITER})
 # None means "public": anyone, logged in or not.
 POLICY: dict[str, frozenset[Role] | None] = {
     "GET /health": None,
@@ -79,6 +80,9 @@ POLICY: dict[str, frozenset[Role] | None] = {
     "GET /api/profile/resume": CANDIDATE_ONLY,
     "GET /api/jobs/{job_id}/applications": ADMIN_AND_RECRUITER,
     "GET /api/applications/{application_id}/resume": ADMIN_AND_RECRUITER,
+    "GET /api/applications/{application_id}": ADMIN_AND_RECRUITER,
+    "POST /api/applications/{application_id}/advance": RECRUITER_ONLY,
+    "POST /api/applications/{application_id}/reject": RECRUITER_ONLY,
     "GET /api/recruiters": ADMIN_AND_RECRUITER,
     "GET /api/jobs": ADMIN_AND_RECRUITER,
     "POST /api/jobs": ADMIN_AND_RECRUITER,
