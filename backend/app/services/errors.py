@@ -109,6 +109,15 @@ class ApplicationEnded(RuleViolation):
     message = "This application has already ended and cannot be withdrawn."
 
 
+class ApplicationVersionConflict(VersionConflict):
+    message = "This application was changed by someone else. Reload it and try again."
+
+
+class ApplicationNotActive(RuleViolation):
+    code = "application_not_active"
+    message = "This application has ended and can no longer be moved."
+
+
 class CannotReactivate(RuleViolation):
     code = "cannot_reactivate"
     message = "This application cannot be reactivated."

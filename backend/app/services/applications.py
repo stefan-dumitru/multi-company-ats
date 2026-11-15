@@ -85,34 +85,39 @@ def _resume_to_apply_with(db: Session, candidate: User) -> uuid.UUID:
     return file.id
 
 
-def _record_stage_change(
+def record_stage_change(
     db: Session,
-    candidate: User,
+    actor: User,
     application: Application,
     *,
     action: str,
     old_stage: ApplicationStage | None,
     now: datetime,
+    also_audit: dict[str, str] | None = None,
 ) -> None:
-    """The history row and the audit row for a change that has just been made."""
+    """The history row and the audit row for a change that has just been made.
+
+    `actor` is whoever made it: the candidate, or a recruiter. `also_audit` adds fields to the audit
+    row's new value (the rejection's reason category), never free text.
+    """
     db.add(
         ApplicationStageHistory(
             application_id=application.id,
             from_stage=old_stage,
             to_stage=application.stage,
-            changed_by=candidate.id,
+            changed_by=actor.id,
             changed_at=now,
         )
     )
     record_audit(
         db,
-        actor=candidate,
+        actor=actor,
         company_id=application.company_id,  # a candidate has none: file it under the job's company
         action=action,
         entity_type="application",
         entity_id=application.id,
         old_value=None if old_stage is None else {"stage": old_stage.value},
-        new_value={"stage": application.stage.value},
+        new_value={"stage": application.stage.value, **(also_audit or {})},
         now=now,
     )
 
@@ -157,7 +162,7 @@ def apply_to_job(db: Session, candidate: User, job_id: uuid.UUID, now: datetime)
             raise
         return ApplyResult(winner, created=False)
 
-    _record_stage_change(
+    record_stage_change(
         db, candidate, application, action="application.created", old_stage=None, now=now
     )
     enqueue(
@@ -199,7 +204,7 @@ def withdraw_application(
     application.stage = ApplicationStage.WITHDRAWN
     application.version += 1
     application.updated_at = now
-    _record_stage_change(
+    record_stage_change(
         db, candidate, application, action="application.withdrawn", old_stage=old_stage, now=now
     )
     db.flush()
@@ -225,7 +230,7 @@ def reactivate_application(
     application.stage_before_withdrawal = None
     application.version += 1
     application.updated_at = now
-    _record_stage_change(
+    record_stage_change(
         db,
         candidate,
         application,

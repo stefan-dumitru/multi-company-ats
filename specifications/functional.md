@@ -272,15 +272,27 @@ The roles table above says *what* each role can do. This section says *how*.
   - Allowed transitions: forward one stage at a time; Rejected from any stage. Skipping stages
     and moving backwards are not allowed.
   - Rejection requires a reason from the fixed list (see `data-model.md`) and takes an optional
-    internal comment. The comment is never shown to the candidate. Whether the candidate's
-    rejection email includes the reason category: [TODO].
+    internal comment (at most 2000 characters; required for `other`). Neither is ever shown to the
+    candidate, and the candidate's rejection email is a kind, generic message that names no
+    reason.
   - Rejection reasons (fixed list): skills/experience mismatch; position filled / better
     candidate selected; candidate withdrew interest or unresponsive; failed interview/assessment;
     other (requires the comment).
   - Concurrent moves use optimistic locking on `Application.version`; the second writer gets a
     "this application changed, reload" error and nothing is overwritten.
-  - Hired, Rejected and Withdrawn are terminal for recruiters. Reopening a rejected application:
-    [TODO].
+  - Hired, Rejected and Withdrawn are terminal for recruiters (409 `application_not_active`).
+    A rejected application cannot be reopened in v1; because a candidate has one application per
+    job, a mistaken rejection cannot be put right. Known limit.
+  - Only recruiters assigned to the job move, reject or write notes. A company admin can read the
+    application, its history and its notes but does not decide; interviewers and candidates have no
+    access. Anything outside the caller's scope is "not found".
+  - A move needs no target: the request carries only the version, and the server moves the
+    application to the next stage (Applied -> Screening -> Interview -> Offer -> Hired). The
+    candidate gets one email per milestone (Screening, Interview, Offer, Hired) and one on
+    rejection, sent by the worker. A candidate withdrawing at the same moment makes the
+    recruiter's version stale, so the move is refused with the conflict message.
+  - Audit actions written: `application.stage_changed`, `application.rejected` (the new value
+    holds the stage and the reason category, never the comment).
   - Closing a job does not touch its in-flight applications; they continue to a decision.
 
 ### Schedule an interview

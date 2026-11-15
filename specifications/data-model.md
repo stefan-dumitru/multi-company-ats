@@ -150,9 +150,12 @@ above.
 
 ### Application — Transactional
 
-- **Built so far (Phase 5):** `id`, `job_id`, `company_id`, `candidate_id`, `resume_file_id`,
-  `stage`, `stage_before_withdrawal`, `version`, `created_at`, `updated_at`. The rejection fields
-  arrive with the pipeline (Phase 6). The database enforces: one row per (`candidate_id`,
+- **Built so far (Phases 5 and 6):** `id`, `job_id`, `company_id`, `candidate_id`,
+  `resume_file_id`, `stage`, `stage_before_withdrawal`, `rejected_from_stage`, `rejection_reason`,
+  `rejection_comment`, `version`, `created_at`, `updated_at`. The database enforces that the three
+  rejection fields are set exactly when the stage is `rejected`, that a rejection comes from a stage
+  that was still in play, that `other` has a non-blank comment, and that a comment exists only on a
+  rejection. It also enforces: one row per (`candidate_id`,
   `job_id`); `stage_before_withdrawal` is set exactly while the stage is `withdrawn`, and is
   always one of applied, screening, interview, offer. `ApplicationStageHistory` is built with it,
   because applying, withdrawing and reactivating already write it. A file is in use (and must not
@@ -234,7 +237,8 @@ above.
 - **Relationships:** belongs to `Application`, `User`.
 - **Lifecycle:** Append-only; no edit or delete in v1.
 - **Delete/cascade semantics:** Never deleted. Never shown to candidates or to interviewers.
-- **Constraints / invariants:** Author is a recruiter or admin with access to the application.
+- **Constraints / invariants:** Author is a recruiter assigned to the application's job (company
+  admins can read notes but not write them).
 
 ### AuditLog — Transactional
 
@@ -252,6 +256,10 @@ above.
   resume contents.
 - **Actions written so far (Phase 2):** `user.role_changed`, `user.deactivated`,
   `user.reactivated` (values hold only the changed field, e.g. `{"role": "recruiter"}`).
+  Applications (Phases 5 and 6): `application.created`, `application.withdrawn`,
+  `application.reactivated` (by the candidate), `application.stage_changed`,
+  `application.rejected` (by a recruiter; values hold stages and the rejection reason category,
+  never the internal comment).
 
 ### File — Technical
 

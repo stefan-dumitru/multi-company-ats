@@ -10,9 +10,19 @@ from app.db import get_db
 from app.models import User
 from app.pagination import Page, PageRequest, page_request
 from app.responses import resume_download
-from app.schemas.applications import ApplyRequest, MyApplicationOut
+from app.schemas.applications import (
+    ApplicationDetailOut,
+    ApplyRequest,
+    HistoryEntryOut,
+    MyApplicationOut,
+    RejectionOut,
+    RejectRequest,
+)
+from app.schemas.jobs import VersionRequest
 from app.services import applications as applications_service
+from app.services import pipeline as pipeline_service
 from app.services.applications import ApplicationView
+from app.services.pipeline import NEXT_STAGE, ApplicationDetail
 
 router = APIRouter(prefix="/api/applications", tags=["applications"])
 
@@ -89,3 +99,82 @@ def download_applicant_resume(
 ) -> StreamingResponse:
     file, stored = applications_service.open_application_resume(db, user, application_id)
     return resume_download(file, stored)
+
+
+def detail_out(detail: ApplicationDetail) -> ApplicationDetailOut:
+    application = detail.application
+    rejection = None
+    if application.rejection_reason is not None and application.rejected_from_stage is not None:
+        rejection = RejectionOut(
+            from_stage=application.rejected_from_stage,
+            reason=application.rejection_reason,
+            comment=application.rejection_comment,
+        )
+    return ApplicationDetailOut(
+        id=application.id,
+        job_id=application.job_id,
+        job_title=detail.job_title,
+        candidate_name=detail.candidate_name,
+        candidate_email=detail.candidate_email,
+        candidate_phone=detail.candidate_phone,
+        candidate_location=detail.candidate_location,
+        stage=application.stage,
+        next_stage=NEXT_STAGE.get(application.stage),
+        version=application.version,
+        applied_at=application.created_at,
+        rejection=rejection,
+        history=[
+            HistoryEntryOut(
+                from_stage=entry.from_stage,
+                to_stage=entry.to_stage,
+                changed_by_name=entry.changed_by_name,
+                changed_at=entry.changed_at,
+            )
+            for entry in detail.history
+        ],
+    )
+
+
+@router.get("/{application_id}", response_model=ApplicationDetailOut)
+def get_application(
+    application_id: uuid.UUID,
+    user: User = Depends(require_permission(Permission.VIEW_APPLICATIONS)),
+    db: Session = Depends(get_db),
+) -> ApplicationDetailOut:
+    return detail_out(pipeline_service.get_application_detail(db, user, application_id))
+
+
+@router.post("/{application_id}/advance", response_model=ApplicationDetailOut)
+def advance_application(
+    application_id: uuid.UUID,
+    payload: VersionRequest,
+    user: User = Depends(require_permission(Permission.MANAGE_APPLICATIONS)),
+    db: Session = Depends(get_db),
+) -> ApplicationDetailOut:
+    pipeline_service.advance_application(
+        db, user, application_id, payload.version, datetime.now(UTC)
+    )
+    out = detail_out(pipeline_service.get_application_detail(db, user, application_id))
+    db.commit()  # the move, its history and audit rows and the candidate's email: one transaction
+    return out
+
+
+@router.post("/{application_id}/reject", response_model=ApplicationDetailOut)
+def reject_application(
+    application_id: uuid.UUID,
+    payload: RejectRequest,
+    user: User = Depends(require_permission(Permission.MANAGE_APPLICATIONS)),
+    db: Session = Depends(get_db),
+) -> ApplicationDetailOut:
+    pipeline_service.reject_application(
+        db,
+        user,
+        application_id,
+        payload.version,
+        payload.reason,
+        payload.comment,
+        datetime.now(UTC),
+    )
+    out = detail_out(pipeline_service.get_application_detail(db, user, application_id))
+    db.commit()
+    return out
