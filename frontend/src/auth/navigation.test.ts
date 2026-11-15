@@ -14,9 +14,10 @@ describe('navItemsFor', () => {
     expect(navItemsFor('recruiter')).toEqual([{ label: 'My jobs', to: '/manage/jobs' }])
   })
 
-  it('gives candidates the job search and their profile', () => {
+  it('gives candidates the job search, their applications and their profile', () => {
     expect(navItemsFor('candidate')).toEqual([
       { label: 'Jobs', to: '/jobs' },
+      { label: 'My applications', to: '/applications' },
       { label: 'Profile', to: '/profile' },
     ])
   })

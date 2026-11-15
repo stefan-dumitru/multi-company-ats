@@ -250,6 +250,13 @@ The roles table above says *what* each role can do. This section says *how*.
   to a job: name, email, stage and date, newest first, withdrawn ones included and marked. They can
   download the resume the candidate applied with (the snapshot, not a newer upload). Any job or
   application outside their reach is "not found". Interviewers see none of this.
+  **On screen:** the public job page offers Apply to a verified candidate who has a resume (and
+  shows "You applied on <date>" afterwards, or that they withdrew); a visitor is asked to log in or
+  register and is brought back to the job; a candidate without a verified email or a resume is
+  pointed to their profile; staff see no apply controls. "My applications" lists a candidate's own
+  applications as cards, with Withdraw (after a confirmation) and Reactivate (disabled, with the
+  reason, once the job is closed). The job page learns whether the candidate already applied from
+  `GET /api/applications?job_id=<job>`.
 
 ### Move an application through the pipeline
 

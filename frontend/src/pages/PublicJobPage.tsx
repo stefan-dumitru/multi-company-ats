@@ -2,6 +2,7 @@ import { Link, useParams } from 'react-router'
 import { useResource } from '@/api/useResource'
 import { Button } from '@/components/ui/button'
 import { formatDate } from '@/lib/format'
+import ApplyPanel from './applications/ApplyPanel'
 import type { PublicJob } from './publicjobs/types'
 
 /** One open job, for anyone. */
@@ -56,6 +57,7 @@ export default function PublicJobPage() {
           More jobs at {current.company_name}
         </Link>
       </header>
+      <ApplyPanel jobId={current.id} />
       {/* pre-wrap keeps the paragraphs the recruiter typed. The text is shown as text, not HTML. */}
       <p className="whitespace-pre-wrap">{current.description}</p>
     </article>
