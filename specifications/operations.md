@@ -28,7 +28,10 @@ portfolio deployment.
   read), so on the Hobby plan we assume there are **no platform backups** until verified in the
   Railway dashboard. Today both databases hold only demo data. Before any real personal data goes
   in, add scheduled `pg_dump` backups to an S3 bucket or move to a plan with backups. RPO figure:
-  [TODO]. Backup of the resume bucket: [TODO]
+  [TODO]. Backup of the resume bucket: none is configured and we assume Railway keeps none for
+  buckets either. Lost resumes would show as "not found" on download; a candidate can upload a
+  new one, but the copy an application snapshotted is gone. Before real candidates use the app,
+  decide on an export or replication of the bucket.
 - How long a full restore may take (RTO), and whether a restore has ever actually been tested:
   RTO [TODO]. One restore must be tested into a scratch database before production go-live —
   an untested backup is not a backup.
