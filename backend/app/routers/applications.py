@@ -2,12 +2,14 @@ import uuid
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, Response
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
 from app.auth.permissions import Permission, require_permission
 from app.db import get_db
 from app.models import User
 from app.pagination import Page, PageRequest, page_request
+from app.responses import resume_download
 from app.schemas.applications import ApplyRequest, MyApplicationOut
 from app.services import applications as applications_service
 from app.services.applications import ApplicationView
@@ -76,3 +78,13 @@ def reactivate(
     out = application_out(applications_service.application_view(db, user, application_id))
     db.commit()
     return out
+
+
+@router.get("/{application_id}/resume")
+def download_applicant_resume(
+    application_id: uuid.UUID,
+    user: User = Depends(require_permission(Permission.VIEW_APPLICATIONS)),
+    db: Session = Depends(get_db),
+) -> StreamingResponse:
+    file, stored = applications_service.open_application_resume(db, user, application_id)
+    return resume_download(file, stored)

@@ -147,7 +147,10 @@ The per-project choices:
   itself is private. Every download is an attachment with the verified content type,
   `X-Content-Type-Options: nosniff` and `Cache-Control: private, no-store`; the app never
   renders a resume. A candidate downloads their own current resume; staff download the resume of
-  an application on a job they can see (Phase 5, step 5). Anything else is "not found".
+  an application on a job they can see (an admin: any job of the company; a recruiter: only the
+  jobs assigned to them), and what they get is the resume the candidate applied with (the snapshot),
+  never a newer one. Interviewers and candidates have no such download. Anything else is
+  "not found".
 - Malware scanning of uploads: none in v1 (accepted risk). The mitigations are the type check by
   content, the size limit, the hourly limit, and serving files only as downloads with `nosniff`.
 

@@ -74,7 +74,8 @@ What exists after Phase 4, and (marked *planned*) what later phases add:
   rules and tenant-scoped data access; `users.py` is the pattern to copy; `jobs.py` shows scoping
   by assignment, row locks and versions; `public_jobs.py` is the one place that reads company data
   without a user, limited to open jobs), `pagination.py` (the one paging rule: `page`,
-  `page_size`, `{items, total, page, page_size}`), `emails/` (one template
+  `page_size`, `{items, total, page, page_size}`), `responses.py` (the one way a resume is
+  delivered, for candidates and staff alike), `emails/` (one template
   per email, registered by name), `integrations/` (`smtp.py`), `worker/` (`queue.py`: the
   Postgres-backed job queue; `runner.py`: the loop; `handlers.py`: job type to function;
   `heartbeat.py`, `status.py`, `maintenance.py`: the hourly purge; `python -m app.worker` runs it),

@@ -5,6 +5,7 @@ candidate's application is "not found", never "forbidden". Each change writes it
 audit row and (for applying) the queued email in the same transaction; the caller commits.
 """
 
+import logging
 import uuid
 from dataclasses import dataclass
 from datetime import datetime
@@ -13,6 +14,7 @@ from sqlalchemy import Select, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.integrations import storage
 from app.models import (
     ACTIVE_STAGES,
     Application,
@@ -34,7 +36,10 @@ from app.services.errors import (
     NotFoundError,
     ResumeRequired,
 )
+from app.services.jobs import get_job, visible_jobs_filter
 from app.worker.queue import enqueue
+
+logger = logging.getLogger(__name__)
 
 # The unique constraint on (candidate_id, job_id): a clash on it means "already applied".
 DUPLICATE_APPLICATION = "uq_applications_candidate_job"
@@ -278,3 +283,66 @@ def list_my_applications(
         for application, title, company_name, job_status in rows
     ]
     return views, total
+
+
+# ---- what staff see ------------------------------------------------------------------------
+
+
+@dataclass
+class Applicant:
+    """One application on a job, with who made it. For staff; a candidate never gets this."""
+
+    application: Application
+    candidate_name: str
+    candidate_email: str
+
+
+def list_job_applications(
+    db: Session, user: User, job_id: uuid.UUID, page: PageRequest
+) -> tuple[list[Applicant], int]:
+    """One page of the applications on a job this user may see, newest first, and the total.
+
+    A job outside the user's reach (another company's, or a recruiter's unassigned one) is
+    "not found", the same as a job that does not exist.
+    """
+    job = get_job(db, user, job_id)
+    total = (
+        db.scalar(select(func.count()).select_from(Application).where(Application.job_id == job.id))
+        or 0
+    )
+    rows = db.execute(
+        select(Application, User.full_name, User.email)
+        .join(User, User.id == Application.candidate_id)
+        .where(Application.job_id == job.id)
+        # The id breaks ties, so a page never repeats or skips a row between requests.
+        .order_by(Application.created_at.desc(), Application.id)
+        .limit(page.page_size)
+        .offset(page.offset)
+    )
+    applicants = [Applicant(application, name, email) for application, name, email in rows]
+    return applicants, total
+
+
+def open_application_resume(
+    db: Session, user: User, application_id: uuid.UUID
+) -> tuple[File, storage.StoredObject]:
+    """The record and the bytes of the resume an application was made with.
+
+    That is the snapshot taken when the candidate applied, not their current resume. The
+    application must be on a job this user may see: the same job rule as the list above.
+    """
+    application = db.scalar(
+        select(Application)
+        .join(Job, Job.id == Application.job_id)
+        .where(Application.id == application_id, *visible_jobs_filter(user))
+    )
+    if application is None:
+        raise NotFoundError
+    file = db.get(File, application.resume_file_id)
+    if file is None:
+        raise NotFoundError
+    try:
+        return file, storage.open_object(file.storage_key)
+    except storage.ObjectNotFound as error:
+        logger.error("An application's resume record points at an object that is not in storage")
+        raise NotFoundError from error

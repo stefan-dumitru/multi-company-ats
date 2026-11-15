@@ -31,6 +31,9 @@ class Permission(enum.StrEnum):
     MANAGE_JOBS = "manage_jobs"
     # A candidate's own profile, resume and applications.
     CANDIDATE_PROFILE = "candidate_profile"
+    # See who applied to a job and download the resume they applied with. Admins and recruiters;
+    # a recruiter only reaches the jobs assigned to them (the service enforces that).
+    VIEW_APPLICATIONS = "view_applications"
 
 
 # A role that is missing from this table, or a permission missing from a role's set, means
@@ -43,10 +46,16 @@ ROLE_PERMISSIONS: dict[Role, frozenset[Permission]] = {
             Permission.VIEW_DEPARTMENTS,
             Permission.MANAGE_DEPARTMENTS,
             Permission.MANAGE_JOBS,
+            Permission.VIEW_APPLICATIONS,
         }
     ),
     Role.RECRUITER: frozenset(
-        {Permission.ACCOUNT_SELF, Permission.VIEW_DEPARTMENTS, Permission.MANAGE_JOBS}
+        {
+            Permission.ACCOUNT_SELF,
+            Permission.VIEW_DEPARTMENTS,
+            Permission.MANAGE_JOBS,
+            Permission.VIEW_APPLICATIONS,
+        }
     ),
     Role.INTERVIEWER: frozenset({Permission.ACCOUNT_SELF}),
     Role.CANDIDATE: frozenset({Permission.ACCOUNT_SELF, Permission.CANDIDATE_PROFILE}),

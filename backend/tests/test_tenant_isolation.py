@@ -22,11 +22,13 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.auth.sessions import SESSION_COOKIE_NAME, create_session
+from app.integrations import storage
 from app.models import (
     Application,
     ApplicationStage,
     AuditLog,
     Department,
+    File,
     Invitation,
     Job,
     PostingStatus,
@@ -108,9 +110,18 @@ def build_tenant(db: Session, name: str) -> Tenant:
 
 
 @pytest.fixture
-def world(db: Session) -> tuple[Tenant, Tenant]:
+def world(db: Session, storage_bucket: str) -> tuple[Tenant, Tenant]:
     a, b = build_tenant(db, "Acme"), build_tenant(db, "Globex")
     db.commit()
+    # The resume download needs real bytes behind each application's resume record, both for the
+    # attack (which must fail because of the company, not because nothing is stored) and for the
+    # control request.
+    for tenant in (a, b):
+        file = db.get(File, tenant.application.resume_file_id)
+        assert file is not None
+        storage.put_object(
+            file.storage_key, b"%PDF-1.4 resume of " + tenant.name.encode(), file.content_type
+        )
     return a, b
 
 
@@ -203,6 +214,12 @@ ID_CASES = [
         lambda t: t.application,
         path_param="application_id",
         actor="candidate",
+    ),
+    IdCase("GET /api/jobs/{job_id}/applications", lambda t: t.open_job, path_param="job_id"),
+    IdCase(
+        "GET /api/applications/{application_id}/resume",
+        lambda t: t.application,
+        path_param="application_id",
     ),
     IdCase(
         "DELETE /api/jobs/{job_id}/recruiters/{user_id}",

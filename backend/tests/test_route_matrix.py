@@ -77,6 +77,8 @@ POLICY: dict[str, frozenset[Role] | None] = {
     "POST /api/applications/{application_id}/withdraw": CANDIDATE_ONLY,
     "POST /api/applications/{application_id}/reactivate": CANDIDATE_ONLY,
     "GET /api/profile/resume": CANDIDATE_ONLY,
+    "GET /api/jobs/{job_id}/applications": ADMIN_AND_RECRUITER,
+    "GET /api/applications/{application_id}/resume": ADMIN_AND_RECRUITER,
     "GET /api/recruiters": ADMIN_AND_RECRUITER,
     "GET /api/jobs": ADMIN_AND_RECRUITER,
     "POST /api/jobs": ADMIN_AND_RECRUITER,
