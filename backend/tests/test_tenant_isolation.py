@@ -31,6 +31,7 @@ from app.models import (
     File,
     Invitation,
     Job,
+    Note,
     PostingStatus,
     Role,
     User,
@@ -237,6 +238,19 @@ ID_CASES = [
         actor="recruiter",
     ),
     IdCase(
+        "GET /api/applications/{application_id}/notes",
+        lambda t: t.application,
+        path_param="application_id",
+    ),
+    IdCase(
+        "POST /api/applications/{application_id}/notes",
+        lambda t: t.application,
+        {"body": "A note"},
+        path_param="application_id",
+        actor="recruiter",
+        ok_status=201,
+    ),
+    IdCase(
         "GET /api/applications/{application_id}/resume",
         lambda t: t.application,
         path_param="application_id",
@@ -436,6 +450,7 @@ def test_the_attacks_left_company_b_untouched(
     assert stored_application is not None
     assert stored_application.stage == ApplicationStage.APPLIED and stored_application.version == 1
     assert stored_application.rejection_reason is None
+    assert db.scalars(select(Note).where(Note.company_id == b.company_id)).all() == []
     audit_for_b = db.scalars(select(AuditLog).where(AuditLog.company_id == b.company_id)).all()
     assert audit_for_b == []
 

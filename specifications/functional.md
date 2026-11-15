@@ -293,6 +293,10 @@ The roles table above says *what* each role can do. This section says *how*.
     recruiter's version stale, so the move is refused with the conflict message.
   - Audit actions written: `application.stage_changed`, `application.rejected` (the new value
     holds the stage and the reason category, never the comment).
+  - Notes: assigned recruiters add internal notes to an application (1 to 4000 characters, trimmed,
+    append-only: no edit, no delete); company admins can read them; interviewers and candidates
+    can neither read nor write them and no response a candidate can reach contains one. Each note
+    adds a `note.added` audit row that names the application and never holds the text.
   - Closing a job does not touch its in-flight applications; they continue to a decision.
 
 ### Schedule an interview

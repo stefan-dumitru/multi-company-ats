@@ -60,7 +60,7 @@ class ApplicationDetail:
     history: list[HistoryEntry]
 
 
-def _reachable_application(
+def reachable_application(
     db: Session, user: User, application_id: uuid.UUID, *, lock: bool
 ) -> Application:
     statement = (
@@ -81,7 +81,7 @@ def _reachable_application(
 
 
 def get_application_detail(db: Session, user: User, application_id: uuid.UUID) -> ApplicationDetail:
-    application = _reachable_application(db, user, application_id, lock=False)
+    application = reachable_application(db, user, application_id, lock=False)
     job = db.get(Job, application.job_id)
     candidate = db.get(User, application.candidate_id)
     assert job is not None and candidate is not None  # foreign keys guarantee both
@@ -110,7 +110,7 @@ def _lock_for_decision(
     db: Session, user: User, application_id: uuid.UUID, version: int
 ) -> Application:
     """The application, locked, if the person is looking at its latest version and it is in play."""
-    application = _reachable_application(db, user, application_id, lock=True)
+    application = reachable_application(db, user, application_id, lock=True)
     if application.version != version:
         raise ApplicationVersionConflict
     if application.stage not in ACTIVE_STAGES:
