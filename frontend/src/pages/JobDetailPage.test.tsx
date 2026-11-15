@@ -113,6 +113,10 @@ function startServer(
       return { status: 200, body: { items: [], total: 0, page: 1, page_size: 20 } }
     }
 
+    if (key === 'GET /api/jobs/j1/applications') {
+      return { status: 200, body: { items: [], total: 0, page: 1, page_size: 20 } }
+    }
+
     const match = url.pathname.match(/^\/api\/jobs\/([^/]+)(\/[a-z]+)?(?:\/([^/]+))?$/)
     if (!match) throw new Error(`Unplanned request in test: ${key}`)
     const job = state.job

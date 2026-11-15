@@ -256,7 +256,10 @@ The roles table above says *what* each role can do. This section says *how*.
   pointed to their profile; staff see no apply controls. "My applications" lists a candidate's own
   applications as cards, with Withdraw (after a confirmation) and Reactivate (disabled, with the
   reason, once the job is closed). The job page learns whether the candidate already applied from
-  `GET /api/applications?job_id=<job>`.
+  `GET /api/applications?job_id=<job>`. For staff, the job page has an Applicants section (not on
+  a draft): one card per application with name, email, stage, date and a "Download resume" link
+  that opens in a new tab; it loads on its own, so a failure there does not break the rest of the
+  page.
 
 ### Move an application through the pipeline
 

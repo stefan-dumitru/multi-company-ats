@@ -1,3 +1,6 @@
+import { STAGE_LABELS } from '../applications/types'
+import type { ApplicationStage } from '../applications/types'
+
 export type JobStatus = 'draft' | 'open' | 'closed'
 
 export const STATUS_LABELS: Record<JobStatus, string> = {
@@ -52,4 +55,19 @@ export interface JobDetail {
   version: number
   needs_reassignment: boolean
   recruiters: Recruiter[]
+}
+
+/** One application on a job, as staff see it (the API's ApplicantOut). */
+export interface Applicant {
+  id: string
+  candidate_name: string
+  candidate_email: string
+  stage: ApplicationStage
+  applied_at: string
+}
+
+/** Stage names for staff: the same as a candidate sees, except that a rejection is called one. */
+export const STAFF_STAGE_LABELS: Record<ApplicationStage, string> = {
+  ...STAGE_LABELS,
+  rejected: 'Rejected',
 }
