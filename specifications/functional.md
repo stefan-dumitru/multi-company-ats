@@ -297,6 +297,12 @@ The roles table above says *what* each role can do. This section says *how*.
     append-only: no edit, no delete); company admins can read them; interviewers and candidates
     can neither read nor write them and no response a candidate can reach contains one. Each note
     adds a `note.added` audit row that names the application and never holds the text.
+  - On screen: a staff page per application (`/manage/applications/<id>`, reached from a name in the
+    job's Applicants list) shows the candidate's details and resume, a progress line, any rejection
+    with its internal reason and comment, and the history. Assigned recruiters get one "Move to
+    <next stage>" button and a Reject dialog (reason list, comment required for `other`); company
+    admins see the page read-only. If someone else changed the application first, the page shows the
+    conflict message with a Reload button and changes nothing.
   - Closing a job does not touch its in-flight applications; they continue to a decision.
 
 ### Schedule an interview
