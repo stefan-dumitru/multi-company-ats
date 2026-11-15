@@ -10,7 +10,7 @@ accepts pull requests whose checks pass.
 
 ## Status
 
-Phases 0 to 5 are done:
+Phases 0 to 6 are done:
 
 - **Phase 0:** a FastAPI backend, a React app, one Docker image that serves both, and the pull
   request pipeline.
@@ -34,6 +34,13 @@ Phases 0 to 5 are done:
   the app), applies to an open job, follows their applications and can withdraw or reactivate
   one. Admins and recruiters see who applied to the jobs they can see and download the resume
   each person applied with; another company's staff get "not found".
+- **Phase 6:** the hiring pipeline. The recruiters assigned to a job move an application forward one
+  stage at a time, reject it with a reason from a fixed list, and keep internal notes on it;
+  company admins can read all of it. Every change carries the version the person was looking at,
+  so two people (or a person and the candidate) can never overwrite each other: the second one is
+  told to reload. Each change writes the history, the audit log and the candidate's email in one
+  transaction. Candidates are told about their progress and kindly about a rejection, and never
+  see the reason, the comment or a note.
 
 - Staging: https://multi-company-ats-staging.up.railway.app
 - Production: https://multi-company-ats-production.up.railway.app
