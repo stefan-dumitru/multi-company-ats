@@ -13,13 +13,16 @@ from app.responses import resume_download
 from app.schemas.applications import (
     ApplicationDetailOut,
     ApplyRequest,
+    CreateNoteRequest,
     HistoryEntryOut,
     MyApplicationOut,
+    NoteOut,
     RejectionOut,
     RejectRequest,
 )
 from app.schemas.jobs import VersionRequest
 from app.services import applications as applications_service
+from app.services import notes as notes_service
 from app.services import pipeline as pipeline_service
 from app.services.applications import ApplicationView
 from app.services.pipeline import NEXT_STAGE, ApplicationDetail
@@ -177,4 +180,34 @@ def reject_application(
     )
     out = detail_out(pipeline_service.get_application_detail(db, user, application_id))
     db.commit()
+    return out
+
+
+@router.get("/{application_id}/notes", response_model=Page[NoteOut])
+def list_notes(
+    application_id: uuid.UUID,
+    page: PageRequest = Depends(page_request),
+    user: User = Depends(require_permission(Permission.VIEW_APPLICATIONS)),
+    db: Session = Depends(get_db),
+) -> Page[NoteOut]:
+    rows, total = notes_service.list_notes(db, user, application_id, page)
+    items = [
+        NoteOut(id=note.id, author_name=name, body=note.body, created_at=note.created_at)
+        for note, name in rows
+    ]
+    return Page(items=items, total=total, page=page.page, page_size=page.page_size)
+
+
+@router.post("/{application_id}/notes", response_model=NoteOut, status_code=201)
+def add_note(
+    application_id: uuid.UUID,
+    payload: CreateNoteRequest,
+    user: User = Depends(require_permission(Permission.MANAGE_APPLICATIONS)),
+    db: Session = Depends(get_db),
+) -> NoteOut:
+    note, author_name = notes_service.add_note(
+        db, user, application_id, payload.body, datetime.now(UTC)
+    )
+    out = NoteOut(id=note.id, author_name=author_name, body=note.body, created_at=note.created_at)
+    db.commit()  # the note and its audit row: one transaction
     return out

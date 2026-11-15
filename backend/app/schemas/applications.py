@@ -5,6 +5,7 @@ from typing import Self
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from app.models import ApplicationStage, RejectionReason
+from app.models.note import MAX_NOTE_LENGTH
 
 MAX_COMMENT_LENGTH = 2000
 
@@ -94,3 +95,28 @@ class ApplicationDetailOut(BaseModel):
     applied_at: datetime
     rejection: RejectionOut | None
     history: list[HistoryEntryOut]
+
+
+class CreateNoteRequest(BaseModel):
+    """Only the words. The author comes from the session, the application from the address."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    body: str = Field(max_length=MAX_NOTE_LENGTH + 1000)
+
+    @field_validator("body")
+    @classmethod
+    def not_blank_and_not_too_long(cls, value: str) -> str:
+        trimmed = value.strip()
+        if not trimmed:
+            raise ValueError("a note cannot be empty")
+        if len(trimmed) > MAX_NOTE_LENGTH:
+            raise ValueError(f"a note can have at most {MAX_NOTE_LENGTH} characters")
+        return trimmed
+
+
+class NoteOut(BaseModel):
+    id: uuid.UUID
+    author_name: str
+    body: str
+    created_at: datetime

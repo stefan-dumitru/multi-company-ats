@@ -235,7 +235,8 @@ above.
 - **Purpose:** Internal comments on an application, visible to company staff with access to it.
 - **Key fields:** `id`, `application_id`, `company_id`, `author_id`, `body`, `created_at`.
 - **Relationships:** belongs to `Application`, `User`.
-- **Lifecycle:** Append-only; no edit or delete in v1.
+- **Lifecycle:** Append-only; no edit or delete in v1. Built in Phase 6: the database refuses a
+  blank body or one over 4000 characters.
 - **Delete/cascade semantics:** Never deleted. Never shown to candidates or to interviewers.
 - **Constraints / invariants:** Author is a recruiter assigned to the application's job (company
   admins can read notes but not write them).
@@ -259,7 +260,7 @@ above.
   Applications (Phases 5 and 6): `application.created`, `application.withdrawn`,
   `application.reactivated` (by the candidate), `application.stage_changed`,
   `application.rejected` (by a recruiter; values hold stages and the rejection reason category,
-  never the internal comment).
+  never the internal comment), `note.added` (names the application, never the note's text).
 
 ### File — Technical
 
