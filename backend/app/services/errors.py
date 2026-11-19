@@ -154,6 +154,12 @@ class InterviewerHasScored(RuleViolation):
     message = "An interviewer who has submitted a scorecard cannot be removed from the interview."
 
 
+class CalendarNotConfigured(RuleViolation):
+    status_code = 503
+    code = "calendar_not_configured"
+    message = "Google Calendar is not set up on this server."
+
+
 class CannotReactivate(RuleViolation):
     code = "cannot_reactivate"
     message = "This application cannot be reactivated."

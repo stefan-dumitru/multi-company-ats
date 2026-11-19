@@ -13,6 +13,7 @@ from app.models.candidate_profile import CandidateProfile
 from app.models.company import Company
 from app.models.department import Department
 from app.models.file import File
+from app.models.google_calendar_connection import GoogleCalendarConnection
 from app.models.interview import (
     CalendarSyncStatus,
     Interview,
@@ -34,6 +35,7 @@ __all__ = [
     "STAFF_ROLES",
     "Application",
     "ApplicationStage",
+    "GoogleCalendarConnection",
     "Note",
     "Recommendation",
     "Scorecard",

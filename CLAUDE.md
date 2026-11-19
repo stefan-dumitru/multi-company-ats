@@ -76,7 +76,8 @@ What exists after Phase 6, and (marked *planned*) what later phases add:
   without a user, limited to open jobs), `pagination.py` (the one paging rule: `page`,
   `page_size`, `{items, total, page, page_size}`), `responses.py` (the one way a resume is
   delivered, for candidates and staff alike), `emails/` (one template
-  per email, registered by name), `integrations/` (`smtp.py`; `storage.py`: the only code that talks to the S3 bucket), `worker/` (`queue.py`: the
+  per email, registered by name), `integrations/` (`smtp.py`; `storage.py`: the only code that talks to the S3 bucket; `google.py`: the
+  only code that talks to Google, with one replaceable `transport` so tests never reach it), `worker/` (`queue.py`: the
   Postgres-backed job queue; `runner.py`: the loop; `handlers.py`: job type to function;
   `heartbeat.py`, `status.py`, `maintenance.py`: the hourly purge; `python -m app.worker` runs it),
   `migrate.py` (the pre-deploy migration step), `logging.py` (JSON log lines). Candidate and

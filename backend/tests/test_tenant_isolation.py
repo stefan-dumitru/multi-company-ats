@@ -414,6 +414,9 @@ LIST_CASES = [
 ]
 
 # Routes that need no isolation case, and why. Adding a route here is a decision a reviewer sees.
+OWN_GOOGLE_CONNECTION = (
+    "acts on the caller's own Google connection only; takes no id; see tests/test_calendar.py"
+)
 NOT_COMPANY_SCOPED = {
     "GET /health": "no data",
     "GET /ready": "no data",
@@ -421,6 +424,10 @@ NOT_COMPANY_SCOPED = {
     "GET /health/jobs": "no data",
     "POST /api/auth/login": "public; the user is found by their own credentials",
     "GET /api/auth/me": "returns the caller's own session only",
+    "GET /api/calendar": OWN_GOOGLE_CONNECTION,
+    "POST /api/calendar/connect": OWN_GOOGLE_CONNECTION,
+    "GET /api/calendar/callback": OWN_GOOGLE_CONNECTION,
+    "DELETE /api/calendar/connection": OWN_GOOGLE_CONNECTION,
     "GET /api/my/interviews": "lists only the interviews the caller is assigned to, never an id"
     " they supply; tests/test_scorecards.py proves it",
     "POST /api/auth/logout": "ends the caller's own session only",

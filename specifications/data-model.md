@@ -314,7 +314,9 @@ above.
   Unique (`provider`, `provider_subject`).
 - **GoogleCalendarConnection:** `user_id`, `refresh_token_encrypted`, `scopes`, `connected_at`.
   The refresh token is encrypted at rest (see `security.md` > Data Protection). Removing the
-  connection deletes the row.
+  connection deletes the row. Built (Phase 7): one row per recruiter (primary key `user_id`);
+  connecting again replaces the token; audited as `calendar.connected` and `calendar.disconnected`
+  (never with the token).
 
 ### LoginAttempt — Technical
 
