@@ -353,6 +353,17 @@ The roles table above says *what* each role can do. This section says *how*.
   interviewers only: the candidate either did it or already got the rejection). Interviews that
   are completed or already cancelled are left as they are, and reactivating a withdrawn
   application does not bring cancelled interviews back: schedule them again.
+  On screen: the application page has an Interviews section (not shown when the application is
+  past the Interview stage and nothing was held). Each interview shows its round, the time in the
+  viewer's own time zone (named), duration, location, interviewers (a deactivated one marked, with a
+  "needs a new interviewer" notice) and status, and the scorecards submitted so far, each with its
+  ratings, recommendation and feedback. Assigned recruiters get "Schedule an interview" (Interview
+  stage only; round name, date and time in their own zone, duration, location, interviewers picked
+  from `GET /api/interviewers`, which lists the company's active interviewers for recruiters),
+  "Reschedule" (sends only what changed and the version) and "Cancel interview" (after a
+  confirmation). Company admins read the same section and change nothing. A stale change shows the
+  conflict message with a Reload button. The section loads on its own, and asks again whenever the
+  application changes, so rejecting an application shows its interviews as cancelled.
 
 ### Submit a scorecard (blind scoring)
 

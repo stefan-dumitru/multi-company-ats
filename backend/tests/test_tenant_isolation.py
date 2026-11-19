@@ -370,6 +370,8 @@ class ListCase:
     key: str
     ids_in_response: Callable[[Any], set[str]]
     own_ids: Callable[[Tenant], set[str]]
+    # Who asks: the tenant's admin unless the route is not for admins.
+    actor: str = "admin"
 
 
 LIST_CASES = [
@@ -397,6 +399,12 @@ LIST_CASES = [
         "GET /api/recruiters",
         lambda body: {person["id"] for person in body["items"]},
         lambda t: {str(t.recruiter.id), str(t.recruiter2.id)},
+    ),
+    ListCase(
+        "GET /api/interviewers",
+        lambda body: {person["id"] for person in body["items"]},
+        lambda t: {str(t.interviewer.id)},
+        actor="recruiter",
     ),
     ListCase(
         "GET /api/jobs",
@@ -568,7 +576,7 @@ def test_lists_contain_only_the_callers_own_rows(
     client: TestClient, db: Session, world: tuple[Tenant, Tenant], case: ListCase
 ) -> None:
     a, b = world
-    act_as_admin_of(client, db, a)
+    act_as(client, db, a, case.actor)
     method, path = case.key.split(" ", 1)
 
     response = client.request(method, path)
