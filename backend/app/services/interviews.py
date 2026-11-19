@@ -23,10 +23,12 @@ from app.models import (
     InterviewStatus,
     Job,
     Role,
+    Scorecard,
     User,
 )
 from app.services.audit import record_audit
 from app.services.errors import (
+    InterviewerHasScored,
     InterviewInThePast,
     InterviewNotScheduled,
     InterviewVersionConflict,
@@ -247,6 +249,14 @@ def update_interview(
         require_active_interviewers(db, interview.company_id, added)
     if not changed and not added and not removed:
         return interview
+    if removed:
+        scored = db.scalar(
+            select(Scorecard.interviewer_id).where(
+                Scorecard.interview_id == interview.id, Scorecard.interviewer_id.in_(removed)
+            )
+        )
+        if scored is not None:
+            raise InterviewerHasScored
 
     for field in changed:
         setattr(interview, field, changes[field])

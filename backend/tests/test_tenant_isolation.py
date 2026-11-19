@@ -36,6 +36,7 @@ from app.models import (
     Note,
     PostingStatus,
     Role,
+    Scorecard,
     User,
 )
 from tests.factories import (
@@ -142,6 +143,10 @@ def world(db: Session, storage_bucket: str) -> tuple[Tenant, Tenant]:
     for tenant in (a, b):
         file = db.get(File, tenant.application.resume_file_id)
         assert file is not None
+        # the interviews are on a second application, whose resume needs bytes too
+        other = db.get(File, tenant.interview_application.resume_file_id)
+        assert other is not None
+        storage.put_object(other.storage_key, b"%PDF-1.4 interview resume", other.content_type)
         storage.put_object(
             file.storage_key, b"%PDF-1.4 resume of " + tenant.name.encode(), file.content_type
         )
@@ -150,7 +155,12 @@ def world(db: Session, storage_bucket: str) -> tuple[Tenant, Tenant]:
 
 def act_as(client: TestClient, db: Session, tenant: Tenant, actor: str = "admin") -> str:
     """Log the client in as this tenant's admin, or its candidate; return the CSRF token."""
-    users = {"admin": tenant.admin, "candidate": tenant.candidate, "recruiter": tenant.recruiter}
+    users = {
+        "admin": tenant.admin,
+        "candidate": tenant.candidate,
+        "recruiter": tenant.recruiter,
+        "interviewer": tenant.interviewer,
+    }
     user = users[actor]
     token, session = create_session(db, user, datetime.now(UTC))
     db.commit()
@@ -306,6 +316,39 @@ ID_CASES = [
         actor="recruiter",
     ),
     IdCase(
+        "GET /api/interviews/{interview_id}/scorecards",
+        lambda t: t.interview,
+        path_param="interview_id",
+    ),
+    IdCase(
+        "GET /api/my/interviews/{interview_id}",
+        lambda t: t.interview,
+        path_param="interview_id",
+        actor="interviewer",
+    ),
+    IdCase(
+        "GET /api/my/interviews/{interview_id}/resume",
+        lambda t: t.interview,
+        path_param="interview_id",
+        actor="interviewer",
+    ),
+    IdCase(
+        "POST /api/my/interviews/{interview_id}/scorecard",
+        lambda t: t.interview,
+        {
+            "overall_rating": 4,
+            "technical_rating": 4,
+            "communication_rating": 4,
+            "problem_solving_rating": 4,
+            "culture_fit_rating": 4,
+            "feedback": "Fine.",
+            "recommendation": "yes",
+        },
+        path_param="interview_id",
+        actor="interviewer",
+        ok_status=201,
+    ),
+    IdCase(
         "GET /api/applications/{application_id}/resume",
         lambda t: t.application,
         path_param="application_id",
@@ -370,6 +413,8 @@ NOT_COMPANY_SCOPED = {
     "GET /health/jobs": "no data",
     "POST /api/auth/login": "public; the user is found by their own credentials",
     "GET /api/auth/me": "returns the caller's own session only",
+    "GET /api/my/interviews": "lists only the interviews the caller is assigned to, never an id"
+    " they supply; tests/test_scorecards.py proves it",
     "POST /api/auth/logout": "ends the caller's own session only",
     "POST /api/auth/verify-email": "public; the user is found by a signed link, no id taken",
     "POST /api/auth/resend-verification": "acts on the caller's own account only",
@@ -506,6 +551,7 @@ def test_the_attacks_left_company_b_untouched(
     assert stored_application.stage == ApplicationStage.APPLIED and stored_application.version == 1
     assert stored_application.rejection_reason is None
     assert db.scalars(select(Note).where(Note.company_id == b.company_id)).all() == []
+    assert db.scalars(select(Scorecard)).all() == []  # the attack on B's interview scored nothing
     stored_interview = db.get(Interview, b.interview.id)
     assert stored_interview is not None
     assert stored_interview.status == InterviewStatus.SCHEDULED and stored_interview.version == 1

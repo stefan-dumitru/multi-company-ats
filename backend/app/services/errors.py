@@ -144,6 +144,16 @@ class InterviewVersionConflict(VersionConflict):
     message = "This interview was changed by someone else. Reload it and try again."
 
 
+class ScorecardAlreadySubmitted(RuleViolation):
+    code = "scorecard_already_submitted"
+    message = "You have already submitted a scorecard for this interview. It cannot be changed."
+
+
+class InterviewerHasScored(RuleViolation):
+    code = "interviewer_has_scored"
+    message = "An interviewer who has submitted a scorecard cannot be removed from the interview."
+
+
 class CannotReactivate(RuleViolation):
     code = "cannot_reactivate"
     message = "This application cannot be reactivated."

@@ -370,6 +370,26 @@ The roles table above says *what* each role can do. This section says *how*.
   submitted scorecard is final: no editing. Recruiters and company admins can see each
   scorecard for applications they can access as soon as it is submitted (they do not wait for all
   interviewers). Interviewers cannot see notes or other interviews' scorecards.
+  Built (Phase 7): an interviewer has `GET /api/my/interviews` (paged; `filter=upcoming` for
+  scheduled ones still to come, `filter=awaiting` for scheduled ones that have started and have
+  no scorecard of theirs), `GET /api/my/interviews/{id}` (the interview, the candidate's name,
+  email, phone and location, their own scorecard, and `others_visible` plus the colleagues'
+  scorecards only once they have submitted theirs), `GET /api/my/interviews/{id}/resume` (the
+  resume the candidate applied with) and `POST /api/my/interviews/{id}/scorecard`. Any
+  interview they are not assigned to is "not found". Once an interview is cancelled the
+  candidate is no longer shown to the interviewers and the resume is not served (the person
+  may have been rejected or withdrawn); scorecards already submitted stay readable. Blind
+  scoring is decided in the query: colleagues' scorecards are not even fetched until the
+  caller has submitted, and the detail never reveals who has or has not scored. A scorecard
+  has five 1-5 ratings (overall, technical, communication, problem solving, culture), feedback
+  (1 to 4000 characters, trimmed) and a recommendation; a second submit is refused with 409
+  `scorecard_already_submitted` and changes nothing; a cancelled interview takes none. When
+  every active interviewer has submitted the interview becomes `completed` (a deactivated
+  interviewer does not hold it open). Recruiters and admins read each scorecard as soon as it is
+  submitted through `GET /api/interviews/{id}/scorecards`, within their usual scope. An
+  interviewer who has submitted cannot be removed from the interview (409
+  `interviewer_has_scored`). Audit: `scorecard.submitted` (names the interview, never the
+  feedback or ratings) and `interview.completed`.
 
 ### Candidate withdraws, reactivates or deletes their account
 
