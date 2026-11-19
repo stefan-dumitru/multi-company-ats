@@ -10,8 +10,9 @@ same transaction; the caller commits and the worker sends.
 import uuid
 from dataclasses import dataclass
 from datetime import datetime
+from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from app.models import (
@@ -33,9 +34,9 @@ from app.services.errors import (
     NotFoundError,
     NotInInterviewStage,
 )
+from app.services.interview_changes import participant_ids, queue_interview_emails
 from app.services.jobs import visible_jobs_filter
 from app.services.pipeline import reachable_application
-from app.worker.queue import enqueue
 
 
 @dataclass
@@ -93,33 +94,20 @@ def list_interviews(db: Session, user: User, application_id: uuid.UUID) -> list[
     return [interview_view(db, interview) for interview in interviews]
 
 
-def _queue_emails(
-    db: Session,
-    interview: Interview,
-    template: str,
-    *,
-    candidate_id: uuid.UUID,
-    now: datetime,
+def require_active_interviewers(
+    db: Session, company_id: uuid.UUID, interviewer_ids: list[uuid.UUID]
 ) -> None:
-    """One email to each interviewer and one to the candidate, each with its own key."""
-    interviewer_ids = db.scalars(
-        select(InterviewParticipant.interviewer_id).where(
-            InterviewParticipant.interview_id == interview.id
+    """Every one of these must be an active interviewer of this company: one answer otherwise."""
+    found = db.scalars(
+        select(User.id).where(
+            User.id.in_(interviewer_ids),
+            User.company_id == company_id,
+            User.role == Role.INTERVIEWER,
+            User.is_active.is_(True),
         )
-    )
-    for recipient_id in [*interviewer_ids, candidate_id]:
-        enqueue(
-            db,
-            type="send_email",
-            payload={
-                "template": template,
-                "interview_id": str(interview.id),
-                "recipient_id": str(recipient_id),
-            },
-            # The version is new with every change, so a later email is never mistaken for this one.
-            idempotency_key=f"{template}:{interview.id}:{interview.version}:{recipient_id}",
-            now=now,
-        )
+    ).all()
+    if len(found) != len(set(interviewer_ids)):
+        raise InvalidInterviewer
 
 
 def schedule_interview(
@@ -139,16 +127,7 @@ def schedule_interview(
         raise NotInInterviewStage
     if scheduled_at <= now:
         raise InterviewInThePast
-    found = db.scalars(
-        select(User.id).where(
-            User.id.in_(interviewer_ids),
-            User.company_id == application.company_id,
-            User.role == Role.INTERVIEWER,
-            User.is_active.is_(True),
-        )
-    ).all()
-    if len(found) != len(interviewer_ids):
-        raise InvalidInterviewer
+    require_active_interviewers(db, application.company_id, interviewer_ids)
 
     interview = Interview(
         company_id=application.company_id,
@@ -180,8 +159,13 @@ def schedule_interview(
         new_value={"application_id": str(application.id)},
         now=now,
     )
-    _queue_emails(
-        db, interview, "interview_scheduled", candidate_id=application.candidate_id, now=now
+    queue_interview_emails(
+        db,
+        interview,
+        "interview_scheduled",
+        interviewer_ids=interviewer_ids,
+        candidate_id=application.candidate_id,
+        now=now,
     )
     db.flush()
     return interview
@@ -210,8 +194,110 @@ def cancel_interview(
     )
     application = db.get(Application, interview.application_id)
     assert application is not None  # the foreign key guarantees it
-    _queue_emails(
-        db, interview, "interview_cancelled", candidate_id=application.candidate_id, now=now
+    queue_interview_emails(
+        db,
+        interview,
+        "interview_cancelled",
+        interviewer_ids=participant_ids(db, interview.id),
+        candidate_id=application.candidate_id,
+        now=now,
     )
+    db.flush()
+    return interview
+
+
+# The fields of an interview a recruiter may change, in the order they are reported.
+EDITABLE_FIELDS = ("round_name", "scheduled_at", "duration_minutes", "location")
+
+
+def update_interview(
+    db: Session,
+    user: User,
+    interview_id: uuid.UUID,
+    version: int,
+    changes: dict[str, Any],
+    now: datetime,
+) -> Interview:
+    """Reschedule an interview and/or change who interviews. Sending what it already has changes
+    nothing (no new version, no audit row, no email).
+
+    Interviewers already assigned may stay even if they were deactivated since; only people being
+    added must be active interviewers of the company. (Removing an interviewer who has already
+    submitted a scorecard is refused once scorecards exist: the next step.)
+    """
+    interview = reachable_interview(db, user, interview_id, lock=True)
+    if interview.version != version:
+        raise InterviewVersionConflict
+    if interview.status != InterviewStatus.SCHEDULED:
+        raise InterviewNotScheduled
+
+    changed = [
+        field
+        for field in EDITABLE_FIELDS
+        if field in changes and changes[field] != getattr(interview, field)
+    ]
+    if "scheduled_at" in changed and changes["scheduled_at"] <= now:
+        raise InterviewInThePast
+
+    current = participant_ids(db, interview.id)
+    wanted = list(changes["interviewer_ids"]) if "interviewer_ids" in changes else current
+    added = [person for person in wanted if person not in current]
+    removed = [person for person in current if person not in wanted]
+    if added:
+        require_active_interviewers(db, interview.company_id, added)
+    if not changed and not added and not removed:
+        return interview
+
+    for field in changed:
+        setattr(interview, field, changes[field])
+    for person in added:
+        db.add(
+            InterviewParticipant(interview_id=interview.id, interviewer_id=person, assigned_at=now)
+        )
+    if removed:
+        db.execute(
+            delete(InterviewParticipant).where(
+                InterviewParticipant.interview_id == interview.id,
+                InterviewParticipant.interviewer_id.in_(removed),
+            )
+        )
+    interview.version += 1
+    interview.updated_at = now
+    db.flush()
+    record_audit(
+        db,
+        actor=user,
+        action="interview.updated",
+        entity_type="interview",
+        entity_id=interview.id,
+        old_value=None,
+        # Which parts changed, never their values: a location or a name is about a person.
+        new_value={"changed": [*changed, *(["interviewers"] if added or removed else [])]},
+        now=now,
+    )
+    application = db.get(Application, interview.application_id)
+    assert application is not None  # the foreign key guarantees it
+    if changed:  # the time, place or round moved: everyone who stays is told
+        queue_interview_emails(
+            db,
+            interview,
+            "interview_rescheduled",
+            interviewer_ids=[person for person in wanted if person in current],
+            candidate_id=application.candidate_id,
+            now=now,
+        )
+    if added:
+        queue_interview_emails(
+            db, interview, "interview_scheduled", interviewer_ids=added, candidate_id=None, now=now
+        )
+    if removed:
+        queue_interview_emails(
+            db,
+            interview,
+            "interview_unassigned",
+            interviewer_ids=removed,
+            candidate_id=None,
+            now=now,
+        )
     db.flush()
     return interview

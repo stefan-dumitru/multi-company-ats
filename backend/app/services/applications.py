@@ -36,6 +36,7 @@ from app.services.errors import (
     NotFoundError,
     ResumeRequired,
 )
+from app.services.interview_changes import cancel_scheduled_interviews
 from app.services.jobs import get_job, visible_jobs_filter
 from app.worker.queue import enqueue
 
@@ -207,6 +208,7 @@ def withdraw_application(
     record_stage_change(
         db, candidate, application, action="application.withdrawn", old_stage=old_stage, now=now
     )
+    cancel_scheduled_interviews(db, candidate, application, now)  # its interviews end with it
     db.flush()
     return application
 

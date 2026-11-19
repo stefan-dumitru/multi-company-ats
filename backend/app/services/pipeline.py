@@ -29,6 +29,7 @@ from app.models import (
 )
 from app.services.applications import record_stage_change
 from app.services.errors import ApplicationNotActive, ApplicationVersionConflict, NotFoundError
+from app.services.interview_changes import cancel_scheduled_interviews
 from app.services.jobs import visible_jobs_filter
 from app.worker.queue import enqueue
 
@@ -175,6 +176,7 @@ def reject_application(
         # and nowhere else.
         also_audit={"reason": reason.value},
     )
+    cancel_scheduled_interviews(db, user, application, now)  # its interviews end with it
     enqueue(
         db,
         type="send_email",

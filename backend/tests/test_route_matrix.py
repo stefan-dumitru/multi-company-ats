@@ -87,6 +87,7 @@ POLICY: dict[str, frozenset[Role] | None] = {
     "GET /api/applications/{application_id}/interviews": ADMIN_AND_RECRUITER,
     "POST /api/applications/{application_id}/interviews": RECRUITER_ONLY,
     "POST /api/interviews/{interview_id}/cancel": RECRUITER_ONLY,
+    "PATCH /api/interviews/{interview_id}": RECRUITER_ONLY,
     "POST /api/applications/{application_id}/notes": RECRUITER_ONLY,
     "GET /api/recruiters": ADMIN_AND_RECRUITER,
     "GET /api/jobs": ADMIN_AND_RECRUITER,
