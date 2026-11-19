@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { landingPathFor, navItemsFor } from './navigation'
+import { afterLoginPathFor, landingPathFor, navItemsFor } from './navigation'
 
 describe('navItemsFor', () => {
   it('gives company admins the Jobs, Users and Departments pages', () => {
@@ -22,9 +22,9 @@ describe('navItemsFor', () => {
     ])
   })
 
-  it('shows nothing the interviewer cannot use yet', () => {
+  it('gives interviewers their interviews and nothing else', () => {
     // Hiding links is cosmetic: the server decides who may do what.
-    expect(navItemsFor('interviewer')).toEqual([])
+    expect(navItemsFor('interviewer')).toEqual([{ label: 'My interviews', to: '/interviews' }])
   })
 })
 
@@ -37,10 +37,20 @@ describe('landingPathFor', () => {
     expect(landingPathFor('candidate')).toBe('/profile')
   })
 
-  it.each(['recruiter', 'interviewer'] as const)(
-    'sends a %s to the home page until they have a page of their own',
+  it('sends a recruiter to the home page until they have a page of their own', () => {
+    expect(landingPathFor('recruiter')).toBe('/')
+  })
+})
+
+describe('afterLoginPathFor', () => {
+  it('sends an interviewer to their interviews, since that is all they have', () => {
+    expect(afterLoginPathFor('interviewer')).toBe('/interviews')
+  })
+
+  it.each(['company_admin', 'recruiter', 'candidate'] as const)(
+    'sends a %s to the home page',
     (role) => {
-      expect(landingPathFor(role)).toBe('/')
+      expect(afterLoginPathFor(role)).toBe('/')
     },
   )
 })
