@@ -3,6 +3,7 @@ import type { FormEvent } from 'react'
 import { Link, Navigate, useLocation } from 'react-router'
 import { messageOf } from '@/api/client'
 import { useAuth } from '@/auth/AuthContext'
+import { afterLoginPathFor } from '@/auth/navigation'
 import { safeReturnPath } from '@/auth/returnPath'
 import AuthCard from '@/components/AuthCard'
 import FormField from '@/components/FormField'
@@ -20,7 +21,8 @@ export default function LoginPage() {
     return <p role="status">Loading…</p>
   }
   if (state.status === 'authenticated') {
-    return <Navigate to={safeReturnPath(location.state, '/')} replace />
+    const fallback = afterLoginPathFor(state.user.role)
+    return <Navigate to={safeReturnPath(location.state, fallback)} replace />
   }
 
   async function handleSubmit(event: FormEvent) {

@@ -401,6 +401,20 @@ The roles table above says *what* each role can do. This section says *how*.
   interviewer who has submitted cannot be removed from the interview (409
   `interviewer_has_scored`). Audit: `scorecard.submitted` (names the interview, never the
   feedback or ratings) and `interview.completed`.
+  On screen (built): an interviewer's menu has "My interviews", and logging in with nowhere to
+  return to lands there. The list opens on "Awaiting my scorecard" and switches to "Upcoming" and
+  "All my interviews" (each paged, each asked of the server, back to the first page when
+  switched); a row shows the round, the time in the viewer's zone, the job, the candidate, the
+  length and whether the scorecard is needed or submitted. The interview page shows the interview,
+  the candidate (name, email, phone, location) with a resume download in a new tab, and either
+  the scorecard form or, once submitted, the interviewer's own scorecard followed by their
+  colleagues'. The form asks for the five 1-5 ratings (overall, technical skills, communication,
+  problem solving, culture and team fit), a recommendation and feedback (up to 4000 characters);
+  nothing is sent until everything is filled in, and sending asks first because a scorecard
+  cannot be changed. Before submitting, a note says the colleagues' scorecards stay hidden; the
+  screen shows them only when the server says the interviewer has submitted. A cancelled
+  interview shows no candidate and no form. Staff and candidates get "Page not found" on these
+  pages. The interviewer's emails link to `/interviews`.
 
 ### Candidate withdraws, reactivates or deletes their account
 

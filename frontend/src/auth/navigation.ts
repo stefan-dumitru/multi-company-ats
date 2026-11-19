@@ -26,8 +26,7 @@ export function navItemsFor(role: Role): NavItem[] {
         { label: 'Profile', to: '/profile' },
       ]
     case 'interviewer':
-      // Their pages arrive with the phase that builds interviews.
-      return []
+      return [{ label: 'My interviews', to: '/interviews' }]
   }
 }
 
@@ -40,4 +39,12 @@ export function landingPathFor(role: Role): string {
   // A new candidate has one job to do first: confirm their email, which their profile page asks for.
   if (role === 'candidate') return '/profile'
   return '/'
+}
+
+/**
+ * Where someone who logs in with no page to return to starts. An interviewer has one job here, so
+ * they go straight to it; everyone else starts at the home page.
+ */
+export function afterLoginPathFor(role: Role): string {
+  return role === 'interviewer' ? '/interviews' : '/'
 }

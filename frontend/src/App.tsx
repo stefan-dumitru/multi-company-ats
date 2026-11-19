@@ -10,6 +10,8 @@ import HomePage from '@/pages/HomePage'
 import JobDetailPage from '@/pages/JobDetailPage'
 import JobsPage from '@/pages/JobsPage'
 import LoginPage from '@/pages/LoginPage'
+import MyInterviewPage from '@/pages/MyInterviewPage'
+import MyInterviewsPage from '@/pages/MyInterviewsPage'
 import NewJobPage from '@/pages/NewJobPage'
 import PublicJobPage from '@/pages/PublicJobPage'
 import PublicJobsPage from '@/pages/PublicJobsPage'
@@ -39,6 +41,10 @@ export default function App() {
           <Route element={<RequireRole roles={['candidate']} />}>
             <Route path="profile" element={<ProfilePage />} />
             <Route path="applications" element={<ApplicationsPage />} />
+          </Route>
+          <Route element={<RequireRole roles={['interviewer']} />}>
+            <Route path="interviews" element={<MyInterviewsPage />} />
+            <Route path="interviews/:interviewId" element={<MyInterviewPage />} />
           </Route>
           <Route element={<RequireRole roles={['company_admin', 'recruiter']} />}>
             <Route path="manage/jobs" element={<JobsPage />} />

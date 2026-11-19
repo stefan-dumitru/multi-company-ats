@@ -68,3 +68,51 @@ export interface InterviewChanges {
   location?: string
   interviewer_ids?: string[]
 }
+
+/** One of an interviewer's own interviews, as listed (the API's MyInterviewOut). */
+export interface MyInterviewRow {
+  id: string
+  round_name: string
+  scheduled_at: string
+  duration_minutes: number
+  location: string
+  status: InterviewStatus
+  job_title: string
+  /** Null once the interview is cancelled: the person may have been rejected or withdrawn. */
+  candidate_name: string | null
+  my_scorecard_submitted: boolean
+}
+
+export interface CandidateInfo {
+  name: string
+  email: string
+  phone: string | null
+  location: string | null
+}
+
+/** One interview for the interviewer assigned to it (the API's MyInterviewDetailOut). */
+export interface MyInterviewDetail {
+  id: string
+  round_name: string
+  scheduled_at: string
+  duration_minutes: number
+  location: string
+  status: InterviewStatus
+  job_title: string
+  candidate: CandidateInfo | null
+  my_scorecard: Scorecard | null
+  /** Blind scoring: false until the interviewer has submitted, and `others` is empty until then. */
+  others_visible: boolean
+  others: Scorecard[]
+}
+
+/** What the scorecard form sends. */
+export interface ScorecardSubmission {
+  overall_rating: number
+  technical_rating: number
+  communication_rating: number
+  problem_solving_rating: number
+  culture_fit_rating: number
+  feedback: string
+  recommendation: Recommendation
+}
