@@ -292,6 +292,13 @@ ID_CASES = [
         ok_status=201,
     ),
     IdCase(
+        "PATCH /api/interviews/{interview_id}",
+        lambda t: t.interview,
+        {"version": 1, "location": "Room 9"},
+        path_param="interview_id",
+        actor="recruiter",
+    ),
+    IdCase(
         "POST /api/interviews/{interview_id}/cancel",
         lambda t: t.interview,
         {"version": 1},

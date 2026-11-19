@@ -7,7 +7,12 @@ from sqlalchemy.orm import Session
 from app.auth.permissions import Permission, require_permission
 from app.db import get_db
 from app.models import User
-from app.schemas.interviews import InterviewOut, ParticipantOut, ScheduleInterviewRequest
+from app.schemas.interviews import (
+    InterviewOut,
+    ParticipantOut,
+    ScheduleInterviewRequest,
+    UpdateInterviewRequest,
+)
 from app.schemas.jobs import VersionRequest
 from app.services import interviews as interviews_service
 from app.services.interviews import InterviewView
@@ -84,4 +89,19 @@ def cancel_interview(
     )
     out = interview_out(interviews_service.interview_view(db, interview))
     db.commit()
+    return out
+
+
+@router.patch("/interviews/{interview_id}", response_model=InterviewOut)
+def update_interview(
+    interview_id: uuid.UUID,
+    payload: UpdateInterviewRequest,
+    user: User = Depends(require_permission(Permission.MANAGE_INTERVIEWS)),
+    db: Session = Depends(get_db),
+) -> InterviewOut:
+    interview = interviews_service.update_interview(
+        db, user, interview_id, payload.version, payload.changes(), datetime.now(UTC)
+    )
+    out = interview_out(interviews_service.interview_view(db, interview))
+    db.commit()  # the change, its audit row and the emails: one transaction
     return out

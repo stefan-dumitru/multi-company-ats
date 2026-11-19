@@ -198,3 +198,46 @@ def test_the_whole_chain_delivers_one_email_per_person_through_the_worker(
         mine = [m for m in inbox if address in str(m["To"])]
         assert len(mine) == 2, address  # scheduled, then cancelled
     assert all(job.status == JobStatus.SUCCEEDED for job in db.scalars(select(BackgroundJob)))
+
+
+def test_a_rescheduled_email_says_so_to_both_kinds_of_recipient(db: Session) -> None:
+    interview, _application, _recruiter, ivy, cara = setup(db)
+
+    for person in (ivy, cara):
+        email = render(db, "interview_rescheduled", interview.id, person.id)
+
+        assert email is not None and email.to == person.email
+        assert "rescheduled" in email.subject.lower()
+        assert "2026-12-03 14:30 UTC" in email.body and "Room 4" in email.body  # the new details
+    assert "Ivy" not in render(db, "interview_rescheduled", interview.id, cara.id).body
+
+
+def test_nobody_outside_the_interview_gets_a_rescheduled_email(db: Session) -> None:
+    interview, _application, recruiter, _ivy, _cara = setup(db)
+    company = db.get(Company, recruiter.company_id)
+    assert company is not None
+    stranger = make_user(db, email="stranger@acme.test", role=Role.INTERVIEWER, company=company)
+    db.commit()
+
+    assert render(db, "interview_rescheduled", interview.id, stranger.id) is None
+
+
+def test_an_unassigned_email_tells_a_removed_interviewer_without_the_candidates_details(
+    db: Session,
+) -> None:
+    interview, _application, recruiter, _ivy, cara = setup(db)
+    company = db.get(Company, recruiter.company_id)
+    assert company is not None
+    removed = make_user(
+        db, email="gone@acme.test", role=Role.INTERVIEWER, company=company, full_name="Gus Gone"
+    )
+    db.commit()  # not a participant: that is the point
+
+    email = render(db, "interview_unassigned", interview.id, removed.id)
+
+    assert email is not None and email.to == removed.email
+    assert "no longer" in email.body.lower() and "Backend Engineer" in email.subject + email.body
+    assert "https://ats.test/interviews" not in email.body  # nothing for them to open any more
+    # The candidate and anyone outside the company are never sent this one.
+    assert render(db, "interview_unassigned", interview.id, cara.id) is None
+    assert render(db, "interview_unassigned", interview.id, uuid.uuid4()) is None

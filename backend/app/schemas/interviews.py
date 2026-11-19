@@ -74,3 +74,52 @@ class InterviewOut(BaseModel):
     needs_reassignment: bool
     participants: list[ParticipantOut]
     created_at: datetime
+
+
+class UpdateInterviewRequest(BaseModel):
+    """The version the recruiter was looking at, and only the fields they want to change."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    version: int = Field(ge=1)
+    round_name: str | None = Field(default=None, max_length=MAX_ROUND_NAME_LENGTH + 100)
+    scheduled_at: AwareDatetime | None = None
+    duration_minutes: int | None = Field(
+        default=None, ge=MIN_DURATION_MINUTES, le=MAX_DURATION_MINUTES
+    )
+    location: str | None = Field(default=None, max_length=MAX_LOCATION_LENGTH + 100)
+    interviewer_ids: list[uuid.UUID] | None = Field(
+        default=None, min_length=1, max_length=MAX_INTERVIEWERS
+    )
+
+    @field_validator("round_name")
+    @classmethod
+    def round_name_is_words(cls, value: str | None) -> str | None:
+        if value is None:
+            raise ValueError("the round name cannot be null")
+        return _trimmed(value, name="the round name", longest=MAX_ROUND_NAME_LENGTH)
+
+    @field_validator("location")
+    @classmethod
+    def location_is_words(cls, value: str | None) -> str | None:
+        if value is None:
+            raise ValueError("the location cannot be null")
+        return _trimmed(value, name="the location", longest=MAX_LOCATION_LENGTH)
+
+    @model_validator(mode="after")
+    def something_to_change_and_no_nulls(self) -> Self:
+        sent = self.model_fields_set - {"version"}
+        if not sent:
+            raise ValueError("nothing to change")
+        for name in sent:
+            if getattr(self, name) is None:
+                raise ValueError(f"{name} cannot be null")
+        if self.interviewer_ids is not None and len(set(self.interviewer_ids)) != len(
+            self.interviewer_ids
+        ):
+            raise ValueError("an interviewer can only be listed once")
+        return self
+
+    def changes(self) -> dict[str, object]:
+        """Just the fields that were sent."""
+        return {name: getattr(self, name) for name in self.model_fields_set - {"version"}}

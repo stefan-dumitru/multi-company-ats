@@ -321,8 +321,8 @@ The roles table above says *what* each role can do. This section says *how*.
   emails go out; the event creation is retried by the worker and, after the final failure,
   recorded as failed (see `operations.md`). Recruiter has not connected Google -> the interview
   is created and emailed without an event. A recruiter can cancel or reschedule an interview, and
-  the calendar event is deleted or updated to match (decided for v1; the cancel is built first,
-  rescheduling follows). An interviewer who is deactivated after assignment keeps the assignment
+  the calendar event is deleted or updated to match (decided for v1; the calendar part comes with
+  the Google step). An interviewer who is deactivated after assignment keeps the assignment
   but is flagged for reassignment ("needs reassignment"). Interviewers must be active users with
   the Interviewer role in the same company; anything else is refused with one answer
   (`invalid_interviewer`), so it cannot be used to find out who exists elsewhere.
@@ -338,6 +338,21 @@ The roles table above says *what* each role can do. This section says *how*.
   `interview.scheduled` or `interview.cancelled` audit row (ids and status only) and queues one
   email per interviewer and one to the candidate, in the same transaction. The candidate is told
   when and where, never who the interviewers are.
+  Changing an interview (built): `PATCH` with the version and only the fields to change (round
+  name, time, duration, location, the list of interviewers). The new time must be in the future
+  and only a scheduled interview can be changed. Sending what it already has changes nothing: no
+  new version, no audit row, no email. People already assigned may stay even if they were
+  deactivated since; anyone added must be an active interviewer of the company. If the time,
+  place or round changed, everyone who stays and the candidate get a "rescheduled" email; a
+  newly added interviewer gets the "scheduled" email; a removed one gets a "no longer
+  assigned" email. A deactivated interviewer is never emailed. The audit row
+  (`interview.updated`) names which parts changed and never their values. (Removing an
+  interviewer who has already submitted a scorecard is refused once scorecards exist.)
+  When an application is rejected or withdrawn, its scheduled interviews are cancelled in the
+  same transaction (audited as `interview.cancelled` by whoever caused it, emails to the
+  interviewers only: the candidate either did it or already got the rejection). Interviews that
+  are completed or already cancelled are left as they are, and reactivating a withdrawn
+  application does not bring cancelled interviews back: schedule them again.
 
 ### Submit a scorecard (blind scoring)
 
