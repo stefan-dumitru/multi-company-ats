@@ -36,6 +36,7 @@ from app.models import Role
 from tests.factories import make_company, make_user
 
 ADMIN_ONLY = frozenset({Role.COMPANY_ADMIN})
+INTERVIEWER_ONLY = frozenset({Role.INTERVIEWER})
 ADMIN_AND_RECRUITER = frozenset({Role.COMPANY_ADMIN, Role.RECRUITER})
 EVERY_LOGGED_IN_ROLE = frozenset(Role)
 CANDIDATE_ONLY = frozenset({Role.CANDIDATE})
@@ -88,6 +89,11 @@ POLICY: dict[str, frozenset[Role] | None] = {
     "POST /api/applications/{application_id}/interviews": RECRUITER_ONLY,
     "POST /api/interviews/{interview_id}/cancel": RECRUITER_ONLY,
     "PATCH /api/interviews/{interview_id}": RECRUITER_ONLY,
+    "GET /api/interviews/{interview_id}/scorecards": ADMIN_AND_RECRUITER,
+    "GET /api/my/interviews": INTERVIEWER_ONLY,
+    "GET /api/my/interviews/{interview_id}": INTERVIEWER_ONLY,
+    "GET /api/my/interviews/{interview_id}/resume": INTERVIEWER_ONLY,
+    "POST /api/my/interviews/{interview_id}/scorecard": INTERVIEWER_ONLY,
     "POST /api/applications/{application_id}/notes": RECRUITER_ONLY,
     "GET /api/recruiters": ADMIN_AND_RECRUITER,
     "GET /api/jobs": ADMIN_AND_RECRUITER,

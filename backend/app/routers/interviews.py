@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from app.auth.permissions import Permission, require_permission
 from app.db import get_db
 from app.models import User
+from app.routers.my_interviews import scorecard_out
 from app.schemas.interviews import (
     InterviewOut,
     ParticipantOut,
@@ -14,7 +15,9 @@ from app.schemas.interviews import (
     UpdateInterviewRequest,
 )
 from app.schemas.jobs import VersionRequest
+from app.schemas.scorecards import ScorecardOut
 from app.services import interviews as interviews_service
+from app.services import scorecards as scorecards_service
 from app.services.interviews import InterviewView
 
 router = APIRouter(prefix="/api", tags=["interviews"])
@@ -105,3 +108,15 @@ def update_interview(
     out = interview_out(interviews_service.interview_view(db, interview))
     db.commit()  # the change, its audit row and the emails: one transaction
     return out
+
+
+@router.get("/interviews/{interview_id}/scorecards", response_model=list[ScorecardOut])
+def list_interview_scorecards(
+    interview_id: uuid.UUID,
+    user: User = Depends(require_permission(Permission.VIEW_APPLICATIONS)),
+    db: Session = Depends(get_db),
+) -> list[ScorecardOut]:
+    """Recruiters and admins read each scorecard as soon as it is submitted (blind scoring is
+    between interviewers only)."""
+    rows = scorecards_service.list_interview_scorecards(db, user, interview_id)
+    return [scorecard_out(scorecard, name) for scorecard, name in rows]

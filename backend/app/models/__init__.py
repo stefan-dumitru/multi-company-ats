@@ -23,6 +23,7 @@ from app.models.invitation import Invitation
 from app.models.job import Job, JobRecruiter, PostingStatus
 from app.models.login_attempt import LoginAttempt
 from app.models.note import Note
+from app.models.scorecard import Recommendation, Scorecard
 from app.models.session import UserSession
 from app.models.user import STAFF_ROLES, Role, User
 from app.models.user_token import UserToken
@@ -34,6 +35,8 @@ __all__ = [
     "Application",
     "ApplicationStage",
     "Note",
+    "Recommendation",
+    "Scorecard",
     "CalendarSyncStatus",
     "Interview",
     "InterviewParticipant",

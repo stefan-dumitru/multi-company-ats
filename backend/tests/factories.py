@@ -21,8 +21,10 @@ from app.models import (
     Job,
     JobRecruiter,
     PostingStatus,
+    Recommendation,
     RejectionReason,
     Role,
+    Scorecard,
     User,
 )
 
@@ -224,3 +226,30 @@ def make_interview(
         )
     db.flush()
     return interview
+
+
+def make_scorecard(
+    db: Session,
+    *,
+    interview: Interview,
+    interviewer: User,
+    feedback: str = "Solid answers across the board.",
+    recommendation: Recommendation = Recommendation.YES,
+    ratings: int = 4,
+) -> Scorecard:
+    """A submitted scorecard, as submitting leaves it (the interviewer must be assigned)."""
+    scorecard = Scorecard(
+        interview_id=interview.id,
+        interviewer_id=interviewer.id,
+        overall_rating=ratings,
+        technical_rating=ratings,
+        communication_rating=ratings,
+        problem_solving_rating=ratings,
+        culture_fit_rating=ratings,
+        feedback=feedback,
+        recommendation=recommendation,
+        submitted_at=datetime.now(UTC),
+    )
+    db.add(scorecard)
+    db.flush()
+    return scorecard

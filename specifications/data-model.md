@@ -228,9 +228,11 @@ above.
 - **Relationships:** belongs to `Interview` and `User`.
 - **Lifecycle:** Created once by the interviewer, on submit. Final: no editing after submission.
 - **Delete/cascade semantics:** Never deleted.
-- **Constraints / invariants:** Unique (`interview_id`, `interviewer_id`). The author must have
-  an `InterviewParticipant` row. Visibility rule (blind scoring) is enforced by the API query,
-  not stored as a flag.
+- **Constraints / invariants (built, enforced by the database):** Unique (`interview_id`,
+  `interviewer_id`). The author must have an `InterviewParticipant` row: a composite foreign key
+  refuses anyone else, and also stops an interviewer who has scored from being removed. Each
+  rating is 1 to 5, the feedback is not blank and at most 4000 characters.
+  The visibility rule (blind scoring) is enforced by the API query, not stored as a flag.
 
 ### Note — Transactional
 
@@ -264,7 +266,8 @@ above.
   `application.rejected` (by a recruiter; values hold stages and the rejection reason category,
   never the internal comment), `note.added` (names the application, never the note's text),
   `interview.scheduled` (names the application), `interview.cancelled` (the status change),
-  `interview.updated` (which parts changed, never their values).
+  `interview.updated` (which parts changed, never their values), `scorecard.submitted` (names
+  the interview, never the feedback or ratings), `interview.completed`.
 
 ### File — Technical
 

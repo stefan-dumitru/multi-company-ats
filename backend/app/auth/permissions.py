@@ -39,6 +39,9 @@ class Permission(enum.StrEnum):
     MANAGE_APPLICATIONS = "manage_applications"
     # Schedule and cancel interviews. Recruiters only, on the jobs assigned to them.
     MANAGE_INTERVIEWS = "manage_interviews"
+    # An interviewer's own interviews: see the candidate, submit a scorecard. Interviewers only,
+    # and only for interviews they are assigned to (the service enforces that).
+    INTERVIEWER_WORK = "interviewer_work"
 
 
 # A role that is missing from this table, or a permission missing from a role's set, means
@@ -64,7 +67,7 @@ ROLE_PERMISSIONS: dict[Role, frozenset[Permission]] = {
             Permission.MANAGE_INTERVIEWS,
         }
     ),
-    Role.INTERVIEWER: frozenset({Permission.ACCOUNT_SELF}),
+    Role.INTERVIEWER: frozenset({Permission.ACCOUNT_SELF, Permission.INTERVIEWER_WORK}),
     Role.CANDIDATE: frozenset({Permission.ACCOUNT_SELF, Permission.CANDIDATE_PROFILE}),
 }
 
