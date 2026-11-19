@@ -320,10 +320,24 @@ The roles table above says *what* each role can do. This section says *how*.
 - **Rules & edge cases:** Calendar failure must not block scheduling: the interview exists and
   emails go out; the event creation is retried by the worker and, after the final failure,
   recorded as failed (see `operations.md`). Recruiter has not connected Google -> the interview
-  is created and emailed without an event. Rescheduling or cancelling an interview, and what
-  happens to the calendar event: [TODO]. An interviewer who is deactivated after assignment keeps
-  the assignment but is flagged for reassignment. Interviewers must belong to the same company.
-  Interview times are stored in UTC; display time zone: [TODO].
+  is created and emailed without an event. A recruiter can cancel or reschedule an interview, and
+  the calendar event is deleted or updated to match (decided for v1; the cancel is built first,
+  rescheduling follows). An interviewer who is deactivated after assignment keeps the assignment
+  but is flagged for reassignment ("needs reassignment"). Interviewers must be active users with
+  the Interviewer role in the same company; anything else is refused with one answer
+  (`invalid_interviewer`), so it cannot be used to find out who exists elsewhere.
+  Interview times are stored in UTC and sent with their zone (a time without one is refused);
+  screens show each person's browser time zone, and emails state the time in UTC and say so.
+  Scheduling rules (built): only the job's assigned recruiters schedule or cancel (admins can read
+  the interviews of an application, nobody else can); the application must be in the Interview
+  stage (409 `application_not_in_interview`) and the time in the future (409
+  `interview_in_the_past`); round name up to 100 characters, location up to 300, duration 5 to 480
+  minutes, 1 to 10 interviewers. Scheduling locks the application, so it cannot race a rejection.
+  Cancelling needs the interview's version (a stale one is the usual conflict) and only a
+  scheduled interview can be cancelled (409 `interview_not_scheduled`). Each change writes an
+  `interview.scheduled` or `interview.cancelled` audit row (ids and status only) and queues one
+  email per interviewer and one to the candidate, in the same transaction. The candidate is told
+  when and where, never who the interviewers are.
 
 ### Submit a scorecard (blind scoring)
 

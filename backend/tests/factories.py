@@ -1,7 +1,7 @@
 """Helpers that create rows for tests. They flush (so ids exist) but never commit."""
 
 import uuid
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -15,6 +15,9 @@ from app.models import (
     Company,
     Department,
     File,
+    Interview,
+    InterviewParticipant,
+    InterviewStatus,
     Job,
     JobRecruiter,
     PostingStatus,
@@ -185,3 +188,39 @@ def make_application(
     )
     db.flush()
     return application
+
+
+def make_interview(
+    db: Session,
+    *,
+    application: Application,
+    scheduled_by: User,
+    interviewers: list[User],
+    status: InterviewStatus = InterviewStatus.SCHEDULED,
+    scheduled_at: datetime | None = None,
+    round_name: str = "Technical round",
+) -> Interview:
+    """An interview as scheduling would have left it, with its interviewers assigned."""
+    now = datetime.now(UTC)
+    interview = Interview(
+        company_id=application.company_id,
+        application_id=application.id,
+        round_name=round_name,
+        scheduled_at=scheduled_at or now + timedelta(days=3),
+        duration_minutes=60,
+        location="Room 4",
+        status=status,
+        scheduled_by=scheduled_by.id,
+        created_at=now,
+        updated_at=now,
+    )
+    db.add(interview)
+    db.flush()
+    for interviewer in interviewers:
+        db.add(
+            InterviewParticipant(
+                interview_id=interview.id, interviewer_id=interviewer.id, assigned_at=now
+            )
+        )
+    db.flush()
+    return interview

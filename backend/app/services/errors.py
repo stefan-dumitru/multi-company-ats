@@ -118,6 +118,32 @@ class ApplicationNotActive(RuleViolation):
     message = "This application has ended and can no longer be moved."
 
 
+class NotInInterviewStage(RuleViolation):
+    code = "application_not_in_interview"
+    message = "An interview can only be scheduled while the application is in the Interview stage."
+
+
+class InterviewInThePast(RuleViolation):
+    code = "interview_in_the_past"
+    message = "Choose a time in the future."
+
+
+class InvalidInterviewer(RuleViolation):
+    # Same answer for a foreign, unknown, deactivated or non-interviewer user.
+    status_code = 422
+    code = "invalid_interviewer"
+    message = "Choose active interviewers of your company."
+
+
+class InterviewNotScheduled(RuleViolation):
+    code = "interview_not_scheduled"
+    message = "This interview is no longer scheduled."
+
+
+class InterviewVersionConflict(VersionConflict):
+    message = "This interview was changed by someone else. Reload it and try again."
+
+
 class CannotReactivate(RuleViolation):
     code = "cannot_reactivate"
     message = "This application cannot be reactivated."
