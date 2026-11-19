@@ -201,7 +201,10 @@ above.
   `scheduled_by`, `google_event_id` (nullable), `calendar_sync_status`
   (`not_requested` | `pending` | `synced` | `failed`), `created_at`.
 - **Relationships:** belongs to `Application`; has many `InterviewParticipant`, `Scorecard`.
-- **Lifecycle:** Created by a recruiter. Rescheduling and cancelling: [TODO].
+- **Lifecycle:** Created by a recruiter. Cancelling is built (status `cancelled`, version bump);
+  rescheduling follows in the next step. Also has a `version` (optimistic locking, like
+  `Application`) and `updated_at`. `completed` is set automatically once every active interviewer
+  has submitted a scorecard.
 - **Delete/cascade semantics:** Never deleted; cancelled instead.
 - **Constraints / invariants:** Interviewers must be active staff of the same company.
 
@@ -260,7 +263,8 @@ above.
   Applications (Phases 5 and 6): `application.created`, `application.withdrawn`,
   `application.reactivated` (by the candidate), `application.stage_changed`,
   `application.rejected` (by a recruiter; values hold stages and the rejection reason category,
-  never the internal comment), `note.added` (names the application, never the note's text).
+  never the internal comment), `note.added` (names the application, never the note's text),
+  `interview.scheduled` (names the application), `interview.cancelled` (the status change).
 
 ### File — Technical
 

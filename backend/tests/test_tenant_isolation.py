@@ -29,6 +29,8 @@ from app.models import (
     AuditLog,
     Department,
     File,
+    Interview,
+    InterviewStatus,
     Invitation,
     Job,
     Note,
@@ -36,7 +38,14 @@ from app.models import (
     Role,
     User,
 )
-from tests.factories import make_application, make_candidate, make_company, make_job, make_user
+from tests.factories import (
+    make_application,
+    make_candidate,
+    make_company,
+    make_interview,
+    make_job,
+    make_user,
+)
 from tests.test_route_matrix import ROUTES
 
 NOT_FOUND = {"detail": "Not found."}
@@ -59,6 +68,8 @@ class Tenant:
     open_job: Job  # open, same recruiter
     candidate: User  # has applied to the open job above
     application: Application
+    interview_application: Application  # in the Interview stage
+    interview: Interview  # scheduled, on the application above
 
 
 def build_tenant(db: Session, name: str) -> Tenant:
@@ -93,6 +104,15 @@ def build_tenant(db: Session, name: str) -> Tenant:
     )
     candidate = make_candidate(db, email=f"cand@{slug}.test")
     application = make_application(db, job=open_job, candidate=candidate)
+    interview_application = make_application(
+        db,
+        job=open_job,
+        candidate=make_candidate(db, email=f"cand2@{slug}.test"),
+        stage=ApplicationStage.INTERVIEW,
+    )
+    interview = make_interview(
+        db, application=interview_application, scheduled_by=recruiter, interviewers=[interviewer]
+    )
     return Tenant(
         name,
         company.id,
@@ -107,6 +127,8 @@ def build_tenant(db: Session, name: str) -> Tenant:
         open_job,
         candidate,
         application,
+        interview_application,
+        interview,
     )
 
 
@@ -249,6 +271,32 @@ ID_CASES = [
         path_param="application_id",
         actor="recruiter",
         ok_status=201,
+    ),
+    IdCase(
+        "GET /api/applications/{application_id}/interviews",
+        lambda t: t.interview_application,
+        path_param="application_id",
+    ),
+    IdCase(
+        "POST /api/applications/{application_id}/interviews",
+        lambda t: t.interview_application,
+        lambda t: {
+            "round_name": "Round",
+            "scheduled_at": (datetime.now(UTC) + timedelta(days=5)).isoformat(),
+            "duration_minutes": 30,
+            "location": "Room 1",
+            "interviewer_ids": [str(t.interviewer.id)],
+        },
+        path_param="application_id",
+        actor="recruiter",
+        ok_status=201,
+    ),
+    IdCase(
+        "POST /api/interviews/{interview_id}/cancel",
+        lambda t: t.interview,
+        {"version": 1},
+        path_param="interview_id",
+        actor="recruiter",
     ),
     IdCase(
         "GET /api/applications/{application_id}/resume",
@@ -451,6 +499,13 @@ def test_the_attacks_left_company_b_untouched(
     assert stored_application.stage == ApplicationStage.APPLIED and stored_application.version == 1
     assert stored_application.rejection_reason is None
     assert db.scalars(select(Note).where(Note.company_id == b.company_id)).all() == []
+    stored_interview = db.get(Interview, b.interview.id)
+    assert stored_interview is not None
+    assert stored_interview.status == InterviewStatus.SCHEDULED and stored_interview.version == 1
+    other_interviews = db.scalars(
+        select(Interview).where(Interview.company_id == b.company_id)
+    ).all()
+    assert len(other_interviews) == 1  # the attack on B's application scheduled nothing there
     audit_for_b = db.scalars(select(AuditLog).where(AuditLog.company_id == b.company_id)).all()
     assert audit_for_b == []
 

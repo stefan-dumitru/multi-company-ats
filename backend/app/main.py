@@ -24,6 +24,7 @@ from app.routers import (
     candidates,
     companies,
     departments,
+    interviews,
     invitations,
     jobs,
     profile,
@@ -54,6 +55,7 @@ app.include_router(auth.router)
 app.include_router(candidates.router)
 app.include_router(companies.router)
 app.include_router(departments.router)
+app.include_router(interviews.router)
 app.include_router(invitations.router)
 app.include_router(jobs.router)
 app.include_router(profile.router)

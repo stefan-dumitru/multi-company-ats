@@ -13,6 +13,12 @@ from app.models.candidate_profile import CandidateProfile
 from app.models.company import Company
 from app.models.department import Department
 from app.models.file import File
+from app.models.interview import (
+    CalendarSyncStatus,
+    Interview,
+    InterviewParticipant,
+    InterviewStatus,
+)
 from app.models.invitation import Invitation
 from app.models.job import Job, JobRecruiter, PostingStatus
 from app.models.login_attempt import LoginAttempt
@@ -28,6 +34,10 @@ __all__ = [
     "Application",
     "ApplicationStage",
     "Note",
+    "CalendarSyncStatus",
+    "Interview",
+    "InterviewParticipant",
+    "InterviewStatus",
     "RejectionReason",
     "ApplicationStageHistory",
     "AuditLog",

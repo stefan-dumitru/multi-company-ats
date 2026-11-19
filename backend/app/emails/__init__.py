@@ -10,6 +10,7 @@ from app.emails.application_received import render_application_received
 from app.emails.application_rejected import render_application_rejected
 from app.emails.application_stage_changed import render_application_stage_changed
 from app.emails.base import Email, Template
+from app.emails.interview import render_interview_cancelled, render_interview_scheduled
 from app.emails.invitation import render_invitation
 from app.emails.password_changed import render_password_changed
 from app.emails.reset_password import render_reset_password
@@ -19,6 +20,8 @@ TEMPLATES: dict[str, Template] = {
     "application_received": render_application_received,
     "application_rejected": render_application_rejected,
     "application_stage_changed": render_application_stage_changed,
+    "interview_cancelled": render_interview_cancelled,
+    "interview_scheduled": render_interview_scheduled,
     "invitation": render_invitation,
     "verify_email": render_verify_email,
     "reset_password": render_reset_password,
