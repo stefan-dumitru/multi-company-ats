@@ -7,6 +7,8 @@ from email.utils import parseaddr
 from pathlib import Path
 from urllib.parse import urlsplit
 
+from cryptography.fernet import Fernet
+
 
 def get_static_dir() -> Path | None:
     """Folder holding the built React app. Unset in local development, where Vite serves the UI."""
@@ -211,4 +213,46 @@ def get_storage_settings() -> StorageSettings | None:
         secret_access_key=values["S3_SECRET_ACCESS_KEY"],
         region=region,
         addressing_style=style,
+    )
+
+
+@dataclass(frozen=True)
+class GoogleSettings:
+    client_id: str
+    client_secret: str = field(repr=False)  # repr=False: never printed by accident
+    encryption_key: str = field(repr=False)
+    redirect_uri: str
+
+
+_GOOGLE_REQUIRED = ("GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "TOKEN_ENCRYPTION_KEY")
+
+
+def get_google_settings() -> GoogleSettings | None:
+    """The Google Calendar settings, or None when the calendar is not set up at all.
+
+    Optional at startup, like storage: the app runs without them and only the calendar routes say
+    so. Setting some but not all is a mistake and fails loudly. The key is checked to be a real
+    encryption key now, so a typo is found at the first request rather than on a recruiter's screen.
+    """
+    values = {name: os.environ.get(name, "").strip() for name in _GOOGLE_REQUIRED}
+    if not any(values.values()):
+        return None
+    missing = [name for name, value in values.items() if not value]
+    if missing:
+        raise RuntimeError(
+            f"{', '.join(missing)} not set, but other Google settings are. See .env.example."
+        )
+    try:
+        Fernet(values["TOKEN_ENCRYPTION_KEY"].encode())
+    except ValueError, TypeError:
+        # The value itself is never put in the message.
+        raise RuntimeError(
+            "TOKEN_ENCRYPTION_KEY is not a valid key. Generate one with: python -c "
+            '"from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"'
+        ) from None
+    return GoogleSettings(
+        client_id=values["GOOGLE_CLIENT_ID"],
+        client_secret=values["GOOGLE_CLIENT_SECRET"],
+        encryption_key=values["TOKEN_ENCRYPTION_KEY"],
+        redirect_uri=f"{get_app_base_url()}/api/calendar/callback",
     )

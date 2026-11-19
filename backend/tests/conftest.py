@@ -12,6 +12,7 @@ import psycopg
 import pytest
 from alembic import command
 from alembic.config import Config
+from cryptography.fernet import Fernet
 from fastapi.testclient import TestClient
 from sqlalchemy import Engine, create_engine, text
 from sqlalchemy.engine import make_url
@@ -19,8 +20,9 @@ from sqlalchemy.orm import Session
 
 from app.config import get_database_url, get_storage_settings
 from app.db import Base, get_db
-from app.integrations import storage
+from app.integrations import google, storage
 from app.main import app
+from tests.fake_google import FakeGoogle
 
 ALEMBIC_INI = Path(__file__).resolve().parents[1] / "alembic.ini"
 
@@ -111,3 +113,30 @@ def storage_bucket(monkeypatch: pytest.MonkeyPatch) -> Iterator[str]:
     for item in listing.get("Contents", []):
         client.delete_object(Bucket=bucket, Key=item["Key"])
     client.delete_bucket(Bucket=bucket)
+
+
+GOOGLE_CLIENT_ID = "test-client-id.apps.googleusercontent.com"
+GOOGLE_CLIENT_SECRET = "test-client-secret-value"
+
+
+@pytest.fixture
+def google_env(monkeypatch: pytest.MonkeyPatch) -> str:
+    """The calendar is set up. Returns the encryption key (to prove what is stored is not plain)."""
+    key = Fernet.generate_key().decode()
+    monkeypatch.setenv("APP_BASE_URL", "https://ats.test")
+    monkeypatch.setenv("GOOGLE_CLIENT_ID", GOOGLE_CLIENT_ID)
+    monkeypatch.setenv("GOOGLE_CLIENT_SECRET", GOOGLE_CLIENT_SECRET)
+    monkeypatch.setenv("TOKEN_ENCRYPTION_KEY", key)
+    return key
+
+
+@pytest.fixture
+def fake_google(monkeypatch: pytest.MonkeyPatch, google_env: str) -> FakeGoogle:
+    """A fake Google in place of the real one: no test ever makes a real call."""
+    fake = FakeGoogle(
+        client_id=GOOGLE_CLIENT_ID,
+        client_secret=GOOGLE_CLIENT_SECRET,
+        redirect_uri="https://ats.test/api/calendar/callback",
+    )
+    monkeypatch.setattr(google, "transport", fake.transport)
+    return fake

@@ -29,6 +29,14 @@ How it's implemented, and what happens when it fails, is in `security.md` > Auth
 - Who may use Google login: candidates. Whether company staff may also use it: [TODO]
 - Google Calendar is a separate connection from Google login: a company user connects their
   Google account to let the app create interview events (see "Schedule an interview").
+  Built (connection only): a recruiter connects through Google's consent window
+  (`POST /api/calendar/connect` gives the address; `GET /api/calendar/callback` is where Google
+  sends the browser back, to `/calendar?connected=1` or `/calendar?error=<code>`: bad_state,
+  access_denied, missing_code, google_unavailable, google_refused, not_configured) and
+  disconnects with `DELETE /api/calendar/connection` (which also asks Google to forget the
+  token, and disconnects even if Google cannot be reached). `GET /api/calendar` says whether
+  the server has Google set up and whether this recruiter is connected. Only recruiters have a
+  calendar; creating events from interviews is the next step.
 - Company users join by invitation from a company admin. Candidates self-register. A new company
   is created by self-service signup, and the person who signs up becomes its first company admin.
 

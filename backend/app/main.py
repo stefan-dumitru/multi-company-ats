@@ -18,9 +18,11 @@ from app.config import get_secret_key, get_static_dir
 from app.db import get_db
 from app.error_handlers import add_error_handlers
 from app.frontend import mount_frontend
+from app.logging import redact_access_log
 from app.routers import (
     applications,
     auth,
+    calendar,
     candidates,
     companies,
     departments,
@@ -49,10 +51,12 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     yield
 
 
+redact_access_log()  # before the first request: a secret must never reach the access log
 app = FastAPI(title="ATS", lifespan=lifespan)
 add_error_handlers(app)
 app.include_router(applications.router)
 app.include_router(auth.router)
+app.include_router(calendar.router)
 app.include_router(candidates.router)
 app.include_router(companies.router)
 app.include_router(departments.router)

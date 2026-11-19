@@ -103,12 +103,24 @@ This section covers how it's implemented and how it fails.
 
 - Encryption at rest: Whatever the hosting platform provides for the database volume and the
   storage bucket (verify on Railway, [TODO]). Google refresh tokens are additionally encrypted at
-  the application level (key via environment variable; scheme [TODO]).
+  the application level: Fernet (AES-128-CBC with an HMAC, from the `cryptography` library), keyed by
+  `TOKEN_ENCRYPTION_KEY`, an environment variable per environment. The key is checked when the settings
+  are read, the token is only ever decrypted inside the worker or when disconnecting, and the database
+  holds ciphertext only. Losing or changing the key means every recruiter reconnects their calendar
+  (their stored tokens can no longer be read; disconnecting still works). The OAuth client secret is
+  never sent through the browser and never printed. The way back from Google is protected by a signed,
+  10-minute `state` made for the logged-in person (not replayable by someone else). Only the narrowest
+  permission (`calendar.events`) is requested.
 - Transit security beyond the HTTPS baseline in CLAUDE.md: [TODO — confirm that app-to-database
   traffic is private/TLS on Railway]
 - Fields requiring extra protection: `password_hash`, session tokens (`Session`) stored only as hashes; invitation and
   `UserToken` links are signed with `SECRET_KEY` and not stored (see Authentication); `GoogleCalendarConnection.refresh_token_encrypted`;
-  candidate PII and `Note`/`Scorecard` content never written to logs.
+  candidate PII and `Note`/`Scorecard` content never written to logs. Secrets that travel in a web
+  address (Google's one-time `code` and our signed `state` on `/api/calendar/callback`, and the
+  `token` in emailed links) are blanked from the server's access log by a filter
+  (`app/logging.py`, installed at startup). Railway's own edge logs, which we do not control,
+  can still show them: the code works once and is useless without the client secret, and the
+  state is bound to one person and expires in 10 minutes (accepted).
 
 ## File Upload Handling
 
