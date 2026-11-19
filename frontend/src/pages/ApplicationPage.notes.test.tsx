@@ -61,6 +61,7 @@ function startServer(options: { user?: User; notes?: Note[] } = {}) {
     if (key === 'GET /health') return { status: 200, body: { status: 'ok' } }
     if (key === 'GET /api/auth/me') return { status: 200, body: sessionFor(user) }
     if (key === 'GET /api/applications/a1') return { status: 200, body: APPLICATION }
+    if (key === 'GET /api/applications/a1/interviews') return { status: 200, body: [] }
     if (key === 'GET /api/applications/a1/notes') {
       const page = Number(url.searchParams.get('page') ?? '1')
       const size = Number(url.searchParams.get('page_size') ?? '20')

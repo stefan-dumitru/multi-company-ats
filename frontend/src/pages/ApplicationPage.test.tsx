@@ -63,6 +63,7 @@ function startServer(options: { user?: User; application?: ApplicationDetail | n
     }
     if (key === 'GET /health') return { status: 200, body: { status: 'ok' } }
     if (key === 'GET /api/auth/me') return { status: 200, body: sessionFor(user) }
+    if (key === 'GET /api/applications/a1/interviews') return { status: 200, body: [] }
     if (key === 'GET /api/applications/a1/notes') {
       return { status: 200, body: { items: [], total: 0, page: 1, page_size: 20 } }
     }

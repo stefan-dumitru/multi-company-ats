@@ -123,3 +123,11 @@ class UpdateInterviewRequest(BaseModel):
     def changes(self) -> dict[str, object]:
         """Just the fields that were sent."""
         return {name: getattr(self, name) for name in self.model_fields_set - {"version"}}
+
+
+class InterviewerOut(BaseModel):
+    """What a picker shows: nothing else about the person."""
+
+    id: uuid.UUID
+    full_name: str
+    email: str

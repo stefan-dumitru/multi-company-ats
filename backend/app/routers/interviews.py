@@ -7,8 +7,10 @@ from sqlalchemy.orm import Session
 from app.auth.permissions import Permission, require_permission
 from app.db import get_db
 from app.models import User
+from app.pagination import Page, PageRequest, page_request
 from app.routers.my_interviews import scorecard_out
 from app.schemas.interviews import (
+    InterviewerOut,
     InterviewOut,
     ParticipantOut,
     ScheduleInterviewRequest,
@@ -18,6 +20,7 @@ from app.schemas.jobs import VersionRequest
 from app.schemas.scorecards import ScorecardOut
 from app.services import interviews as interviews_service
 from app.services import scorecards as scorecards_service
+from app.services import users as users_service
 from app.services.interviews import InterviewView
 
 router = APIRouter(prefix="/api", tags=["interviews"])
@@ -120,3 +123,15 @@ def list_interview_scorecards(
     between interviewers only)."""
     rows = scorecards_service.list_interview_scorecards(db, user, interview_id)
     return [scorecard_out(scorecard, name) for scorecard, name in rows]
+
+
+@router.get("/interviewers", response_model=Page[InterviewerOut])
+def list_interviewers(
+    page: PageRequest = Depends(page_request),
+    user: User = Depends(require_permission(Permission.MANAGE_INTERVIEWS)),
+    db: Session = Depends(get_db),
+) -> Page[InterviewerOut]:
+    """The people the scheduling form can offer. Only recruiters schedule, so only they get it."""
+    rows, total = users_service.list_company_interviewers(db, user, page)
+    items = [InterviewerOut.model_validate(row, from_attributes=True) for row in rows]
+    return Page(items=items, total=total, page=page.page, page_size=page.page_size)

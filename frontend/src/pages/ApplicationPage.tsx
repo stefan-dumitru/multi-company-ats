@@ -6,6 +6,7 @@ import { useAuth } from '@/auth/AuthContext'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { formatDate } from '@/lib/format'
+import InterviewsSection from './application/InterviewsSection'
 import NotesSection from './application/NotesSection'
 import RejectDialog from './application/RejectDialog'
 import StageProgress from './application/StageProgress'
@@ -197,6 +198,15 @@ export default function ApplicationPage() {
           ))}
         </ol>
       </section>
+
+      {/* Keyed by the version, so it asks again whenever the application changes: rejecting
+          or withdrawing cancels the interviews. */}
+      <InterviewsSection
+        key={current.version}
+        applicationId={current.id}
+        stage={current.stage}
+        canManage={canDecide}
+      />
 
       <NotesSection applicationId={current.id} canWrite={canDecide} />
 

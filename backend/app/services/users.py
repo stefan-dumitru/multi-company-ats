@@ -146,11 +146,24 @@ def list_company_recruiters(
     db: Session, current_user: User, page: PageRequest
 ) -> tuple[list[User], int]:
     """One page of the company's active recruiters by name: who can be put on a job."""
+    return _list_active_by_role(db, current_user, page, Role.RECRUITER)
+
+
+def list_company_interviewers(
+    db: Session, current_user: User, page: PageRequest
+) -> tuple[list[User], int]:
+    """One page of the company's active interviewers by name: who can be put on an interview."""
+    return _list_active_by_role(db, current_user, page, Role.INTERVIEWER)
+
+
+def _list_active_by_role(
+    db: Session, current_user: User, page: PageRequest, role: Role
+) -> tuple[list[User], int]:
     if current_user.company_id is None:
         return [], 0
     wanted = [
         User.company_id == current_user.company_id,
-        User.role == Role.RECRUITER,
+        User.role == role,
         User.is_active.is_(True),
     ]
     total = db.scalar(select(func.count()).select_from(User).where(*wanted)) or 0
