@@ -10,8 +10,11 @@ describe('navItemsFor', () => {
     ])
   })
 
-  it('gives recruiters their jobs', () => {
-    expect(navItemsFor('recruiter')).toEqual([{ label: 'My jobs', to: '/manage/jobs' }])
+  it('gives recruiters their jobs and their calendar connection', () => {
+    expect(navItemsFor('recruiter')).toEqual([
+      { label: 'My jobs', to: '/manage/jobs' },
+      { label: 'Google Calendar', to: '/calendar' },
+    ])
   })
 
   it('gives candidates the job search, their applications and their profile', () => {

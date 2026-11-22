@@ -36,7 +36,8 @@ How it's implemented, and what happens when it fails, is in `security.md` > Auth
   disconnects with `DELETE /api/calendar/connection` (which also asks Google to forget the
   token, and disconnects even if Google cannot be reached). `GET /api/calendar` says whether
   the server has Google set up and whether this recruiter is connected. Only recruiters have a
-  calendar. Events: see "Schedule an interview" (how an interview reaches the calendar).
+  calendar. Events: see "Schedule an interview" (how an interview reaches the calendar). The
+  recruiter's screen for all this is `/calendar` ("Google Calendar" in their menu).
 - Company users join by invitation from a company admin. Candidates self-register. A new company
   is created by self-service signup, and the person who signs up becomes its first company admin.
 
