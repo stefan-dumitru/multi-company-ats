@@ -84,8 +84,9 @@ What exists after Phase 6, and (marked *planned*) what later phases add:
   application code: `services/candidates.py`, `resumes.py` and `resume_files.py` (type by content),
   `applications.py` (apply, withdraw, reactivate, and what staff see of them), `pipeline.py` (what
   recruiters do: read, move forward, reject; the version and row-lock rule lives there) and
-  `notes.py`. *Planned:*
-  `integrations/` for Google Calendar.
+  `notes.py`. Interview code: `services/interviews.py`, `scorecards.py`, `interview_changes.py` (emails
+  and auto-cancel) and `calendar_sync.py` (queues the Google sync; its worker handler and
+  final-failure hook are registered in `worker/handlers.py`).
 - `backend/alembic/` — migrations (`versions/`). `backend/tests/` — pytest, including the route
   gate, role x endpoint matrix and tenant-isolation tests. Adding a route means updating `POLICY`
   in `test_route_matrix.py` and classifying it in `test_tenant_isolation.py`.

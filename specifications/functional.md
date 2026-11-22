@@ -36,7 +36,7 @@ How it's implemented, and what happens when it fails, is in `security.md` > Auth
   disconnects with `DELETE /api/calendar/connection` (which also asks Google to forget the
   token, and disconnects even if Google cannot be reached). `GET /api/calendar` says whether
   the server has Google set up and whether this recruiter is connected. Only recruiters have a
-  calendar; creating events from interviews is the next step.
+  calendar. Events: see "Schedule an interview" (how an interview reaches the calendar).
 - Company users join by invitation from a company admin. Candidates self-register. A new company
   is created by self-service signup, and the person who signs up becomes its first company admin.
 
@@ -329,11 +329,27 @@ The roles table above says *what* each role can do. This section says *how*.
   emails go out; the event creation is retried by the worker and, after the final failure,
   recorded as failed (see `operations.md`). Recruiter has not connected Google -> the interview
   is created and emailed without an event. A recruiter can cancel or reschedule an interview, and
-  the calendar event is deleted or updated to match (decided for v1; the calendar part comes with
-  the Google step). An interviewer who is deactivated after assignment keeps the assignment
+  the calendar event is deleted or updated to match. An interviewer who is deactivated after assignment keeps the assignment
   but is flagged for reassignment ("needs reassignment"). Interviewers must be active users with
   the Interviewer role in the same company; anything else is refused with one answer
   (`invalid_interviewer`), so it cannot be used to find out who exists elsewhere.
+- **How the calendar follows the interview (built):** every real change to an interview (scheduled,
+  rescheduled, people changed, cancelled, or cancelled because the application was rejected or
+  withdrawn) queues one `calendar_event` job in the same transaction, if the recruiter who
+  scheduled it has a Google connection at that moment (`calendar_sync_status` becomes `pending`).
+  The worker then makes Google match the interview as it is when the job runs: an event on the
+  recruiter's primary calendar for a scheduled interview (title "Interview: <candidate> - <job>",
+  round in the description, the location, UTC times, the active interviewers as attendees, and
+  `sendUpdates=none` so Google sends no invitations of its own), no event for a cancelled one.
+  The event id is derived from the interview, so a retry that finds the event already there
+  changes it instead of adding a second. Outcomes: `synced`; `failed` after the last retry
+  (shown on the interview, never blocks anything); `failed` at once, without retrying, when the
+  recruiter has disconnected meanwhile or when Google reports the access revoked, in which case
+  the connection is removed so the calendar page shows "not connected". Limits, decided for v1: an
+  interview scheduled before the recruiter connected has no event until it next changes;
+  disconnecting leaves existing events in Google (we cannot reach them without the token), and later
+  changes to those interviews are not synced; one Google account and its primary calendar per
+  recruiter; no retry button (the next change to the interview tries again).
   Interview times are stored in UTC and sent with their zone (a time without one is refused);
   screens show each person's browser time zone, and emails state the time in UTC and say so.
   Scheduling rules (built): only the job's assigned recruiters schedule or cancel (admins can read

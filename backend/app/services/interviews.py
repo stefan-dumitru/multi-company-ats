@@ -27,6 +27,7 @@ from app.models import (
     User,
 )
 from app.services.audit import record_audit
+from app.services.calendar_sync import queue_calendar_sync
 from app.services.errors import (
     InterviewerHasScored,
     InterviewInThePast,
@@ -169,6 +170,7 @@ def schedule_interview(
         candidate_id=application.candidate_id,
         now=now,
     )
+    queue_calendar_sync(db, interview, now)
     db.flush()
     return interview
 
@@ -204,6 +206,7 @@ def cancel_interview(
         candidate_id=application.candidate_id,
         now=now,
     )
+    queue_calendar_sync(db, interview, now)
     db.flush()
     return interview
 
@@ -309,5 +312,6 @@ def update_interview(
             candidate_id=None,
             now=now,
         )
+    queue_calendar_sync(db, interview, now)
     db.flush()
     return interview

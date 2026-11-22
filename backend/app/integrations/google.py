@@ -1,7 +1,8 @@
 """Google: the one module that talks to it (like `storage.py` does for the bucket).
 
-Only the OAuth side lives here for now: the address of Google's consent window, exchanging the code
-that comes back, refreshing an access token, and revoking. Rules that matter, kept in one place:
+The OAuth side (the address of Google's consent window, exchanging the code that comes back,
+refreshing an access token, revoking) and the calendar side (create, change and delete one event).
+Rules that matter, kept in one place:
 
 * One outgoing call, `transport`, with an explicit timeout. Tests replace it with a fake Google, so
   nothing in the test suite ever reaches the real one.
@@ -17,16 +18,20 @@ import json
 import re
 import urllib.error
 import urllib.request
+import uuid
 from collections.abc import Callable
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from typing import Any
-from urllib.parse import urlencode
+from urllib.parse import quote, urlencode
 
 from app.config import GoogleSettings
 
 AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth"
 TOKEN_URL = "https://oauth2.googleapis.com/token"
 REVOKE_URL = "https://oauth2.googleapis.com/revoke"
+# Events always go on the person's own primary calendar.
+EVENTS_URL = "https://www.googleapis.com/calendar/v3/calendars/primary/events"
 # The narrowest permission that lets us create, change and delete events (and nothing else).
 SCOPE = "https://www.googleapis.com/auth/calendar.events"
 
@@ -83,29 +88,39 @@ transport: Transport = _urllib_transport
 _SAFE_REASON = re.compile(r"[a-z_]{1,40}")
 
 
+def _send(method: str, url: str, headers: dict[str, str], body: bytes | None) -> tuple[int, bytes]:
+    """The one outgoing call, with the failures every caller treats the same way."""
+    try:
+        status, payload = transport(method, url, headers, body, TIMEOUT_SECONDS)
+    except OSError, TimeoutError:
+        # `from None`: the original error's text could echo the request, so it is not kept.
+        raise GoogleUnavailable("Google could not be reached.") from None
+    if status >= 500:
+        raise GoogleUnavailable(f"Google answered {status}.")
+    return status, payload
+
+
+def _refusal(payload: bytes) -> GoogleRefused:
+    """Google said no (4xx). Only a short plain-letters error name is kept, never its text."""
+    reason = "unknown"
+    try:
+        error = json.loads(payload).get("error")
+        if isinstance(error, str) and _SAFE_REASON.fullmatch(error):
+            reason = error
+    except ValueError, AttributeError:
+        pass
+    return GoogleRefused(reason)
+
+
 def _post(url: str, form: dict[str, str], *, read_answer: bool = True) -> dict[str, Any]:
     headers = {
         "Content-Type": "application/x-www-form-urlencoded",
         "Accept": "application/json",
         "User-Agent": "ats",
     }
-    try:
-        status, payload = transport("POST", url, headers, urlencode(form).encode(), TIMEOUT_SECONDS)
-    except OSError, TimeoutError:
-        # `from None`: the original error's text could echo the request, so it is not kept.
-        raise GoogleUnavailable("Google could not be reached.") from None
-
-    if status >= 500:
-        raise GoogleUnavailable(f"Google answered {status}.")
+    status, payload = _send("POST", url, headers, urlencode(form).encode())
     if status >= 400:
-        reason = "unknown"
-        try:
-            error = json.loads(payload).get("error")
-            if isinstance(error, str) and _SAFE_REASON.fullmatch(error):
-                reason = error
-        except ValueError, AttributeError:
-            pass
-        raise GoogleRefused(reason)
+        raise _refusal(payload)
     if not read_answer:
         return {}
     try:
@@ -184,3 +199,77 @@ def refresh_access_token(settings: GoogleSettings, refresh_token: str) -> str:
 def revoke(settings: GoogleSettings, refresh_token: str) -> None:
     """Ask Google to forget this token. Callers treat a failure as non-fatal."""
     _post(REVOKE_URL, {"token": refresh_token}, read_answer=False)
+
+
+# ---- events ------------------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class EventDetails:
+    """What goes on the calendar. Times go out in UTC; Google shows them in the owner's zone."""
+
+    title: str
+    description: str
+    location: str
+    starts_at: datetime
+    ends_at: datetime
+    attendee_emails: tuple[str, ...]
+
+
+def event_id_for(interview_id: uuid.UUID) -> str:
+    """The same interview always gets the same event id (Google allows lowercase letters a-v and
+    digits, 5 to 1024 long). That is what makes a retry safe: creating it twice is refused, and we
+    then change the one that exists instead of leaving two."""
+    return interview_id.hex
+
+
+def _utc(moment: datetime) -> dict[str, str]:
+    return {"dateTime": moment.astimezone(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"), "timeZone": "UTC"}
+
+
+def _event_body(details: EventDetails) -> dict[str, Any]:
+    return {
+        "summary": details.title,
+        "description": details.description,
+        "location": details.location,
+        "start": _utc(details.starts_at),
+        "end": _utc(details.ends_at),
+        "attendees": [{"email": email} for email in details.attendee_emails],
+        # Patching an event that was deleted in Google brings it back.
+        "status": "confirmed",
+    }
+
+
+def _call_events(
+    access_token: str, method: str, event_id: str | None, body: dict[str, Any] | None
+) -> tuple[int, bytes]:
+    url = EVENTS_URL if event_id is None else f"{EVENTS_URL}/{quote(event_id, safe='')}"
+    # Google's own invitation emails are off: ours already go out, and two would confuse people.
+    url += "?sendUpdates=none"
+    headers = {
+        "Authorization": f"Bearer {access_token}",
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+        "User-Agent": "ats",
+    }
+    data = json.dumps(body).encode() if body is not None else None
+    return _send(method, url, headers, data)
+
+
+def upsert_event(access_token: str, event_id: str, details: EventDetails) -> None:
+    """Create the event, or change it if it is already there."""
+    body = _event_body(details)
+    status, payload = _call_events(access_token, "POST", None, {"id": event_id, **body})
+    if status == 409:  # already created (an earlier attempt got that far)
+        status, payload = _call_events(access_token, "PATCH", event_id, body)
+    if status >= 400:
+        raise _refusal(payload)
+
+
+def delete_event(access_token: str, event_id: str) -> None:
+    """Remove the event. One that is already gone counts as removed."""
+    status, payload = _call_events(access_token, "DELETE", event_id, None)
+    if status in (404, 410):
+        return
+    if status >= 400:
+        raise _refusal(payload)
