@@ -18,7 +18,10 @@ export function navItemsFor(role: Role): NavItem[] {
         { label: 'Departments', to: '/departments' },
       ]
     case 'recruiter':
-      return [{ label: 'My jobs', to: '/manage/jobs' }]
+      return [
+        { label: 'My jobs', to: '/manage/jobs' },
+        { label: 'Google Calendar', to: '/calendar' },
+      ]
     case 'candidate':
       return [
         { label: 'Jobs', to: '/jobs' },

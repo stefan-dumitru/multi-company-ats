@@ -37,7 +37,11 @@ in that feature's Plan Mode session, informed by this file — not spec'd upfron
   - Candidate: Jobs (search), My applications, Profile (resume, talent pool opt-in, delete
     account).
   - Recruiter: Dashboard, My jobs, Applications, Interviews, Talent pool, Settings (connect
-    Google Calendar).
+    Google Calendar). Built so far: My jobs and Google Calendar (`/calendar`: whether the
+    server has Google set up, connect, and disconnect after a confirmation; it also shows the
+    outcome of the way back from Google from `?connected=1` or `?error=<code>`, in our own words,
+    then clears the address). Recruiters only: company admins do not schedule, so they have
+    no calendar.
   - Interviewer: My interviews (including those awaiting a scorecard).
   - Company admin: everything a recruiter sees across the whole company, plus Users and
     Departments.
