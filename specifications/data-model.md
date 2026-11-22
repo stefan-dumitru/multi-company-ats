@@ -203,11 +203,13 @@ above.
   while the interview's event exists on the scheduling recruiter's calendar (it is derived from
   the interview id) and cleared when the event is removed.
 - **Relationships:** belongs to `Application`; has many `InterviewParticipant`, `Scorecard`.
-- **Lifecycle:** Created by a recruiter. Cancelling and rescheduling are built (every change bumps the version). Also has a `version` (optimistic locking, like
-  `Application`) and `updated_at`. `completed` is set automatically once every active interviewer
+- **Lifecycle:** Created by a recruiter, who can reschedule, change the interviewers or cancel
+  it (rejecting or withdrawing the application cancels it too). Every change bumps `version`
+  (optimistic locking, like `Application`) and sets `updated_at`. `completed` is set automatically once every active interviewer
   has submitted a scorecard.
 - **Delete/cascade semantics:** Never deleted; cancelled instead.
-- **Constraints / invariants:** Interviewers must be active staff of the same company.
+- **Constraints / invariants:** Interviewers must be active users with the Interviewer role in the
+  same company.
 
 ### InterviewParticipant — Transactional (assignment)
 

@@ -322,7 +322,8 @@ The roles table above says *what* each role can do. This section says *how*.
 - **Role(s):** Recruiter.
 - **Trigger:** Application detail, once it is in the Interview stage.
 - **Main flow:** Recruiter creates an `Interview` (round name, date/time, duration, location text)
-  and assigns one or more interviewers from active staff of the same company. An application can
+  and assigns one or more interviewers (active users with the Interviewer role in the same
+  company). An application can
   have several interviews (rounds). The app emails the interviewers and the candidate. If the
   recruiter has connected Google Calendar, a background job creates a calendar event with the
   interviewers as attendees.

@@ -41,6 +41,15 @@ Phases 0 to 6 are done:
   told to reload. Each change writes the history, the audit log and the candidate's email in one
   transaction. Candidates are told about their progress and kindly about a rejection, and never
   see the reason, the comment or a note.
+- **Phase 7:** interviews and scorecards. A recruiter assigned to a job schedules interviews for an
+  application in the Interview stage and picks interviewers; everyone involved is emailed (times in
+  UTC), and the interview can be rescheduled or cancelled (rejecting or withdrawing an application
+  cancels its interviews). Interviewers see only their own interviews and submit a scorecard, and
+  **blind scoring** hides colleagues' scorecards until they have submitted their own (enforced in
+  the query, not just the screen). A recruiter can connect their Google Calendar so interviews
+  appear on it, kept up to date by the background worker; if Google fails the interview is
+  unaffected and shows that the sync failed. The calendar stays off until the server is given
+  Google credentials.
 
 - Staging: https://multi-company-ats-staging.up.railway.app
 - Production: https://multi-company-ats-production.up.railway.app
