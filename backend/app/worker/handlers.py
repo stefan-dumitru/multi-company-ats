@@ -10,9 +10,10 @@ from app.config import get_smtp_settings
 from app.emails import TEMPLATES
 from app.integrations.smtp import send_email
 from app.models import BackgroundJob
+from app.services import calendar_sync
 from app.services import resumes as resumes_service
 from app.worker.maintenance import maintenance_job
-from app.worker.runner import Handler
+from app.worker.runner import FinalFailureHook, Handler
 
 logger = logging.getLogger("ats.worker")
 
@@ -48,4 +49,10 @@ HANDLERS: dict[str, Handler] = {
     "send_email": send_email_job,
     "delete_file": delete_file_job,
     "maintenance": maintenance_job,
+    calendar_sync.JOB_TYPE: calendar_sync.sync_interview_event,
+}
+
+# What to do after a job type's last failed attempt (see worker/runner.py).
+FINAL_FAILURE_HOOKS: dict[str, FinalFailureHook] = {
+    calendar_sync.JOB_TYPE: calendar_sync.mark_sync_failed,
 }

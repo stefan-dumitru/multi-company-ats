@@ -205,6 +205,12 @@ Applies: a worker process (hand-written, Postgres-backed; `backend/app/worker/`)
 creates Google Calendar events. It reads the `BackgroundJob` table, claiming rows with
 `SELECT ... FOR UPDATE SKIP LOCKED`.
 
+- A job type may register a final-failure hook (`FINAL_FAILURE_HOOKS` in `worker/handlers.py`): it
+  runs once after the last failed attempt and is committed on its own, so something a person can
+  see can be recorded (the calendar uses it to mark `failed`). A hook that fails is logged and
+  dropped. A job that dies with its worker on the last attempt is failed by the stuck-job rescue,
+  which does not run hooks: that interview would stay `pending` (accepted: rare, and the next
+  change to the interview syncs it again).
 - Retry policy and maximum attempts per job type: Exponential backoff, maximum 5 attempts for all
   job types. Backoff intervals: after a failed attempt 1, 2, 3 and 4 the job waits 1 minute,
   5 minutes, 30 minutes and 2 hours (`JOB_BACKOFF_SECONDS` overrides this, for a local demo only).
@@ -245,7 +251,7 @@ Applies. Services and their failure behavior:
 | SMTP server (Mailpit inbox on Railway for now; a real provider replaces it by changing the `SMTP_*` variables) | All emails | Jobs retry with backoff; the user action that triggered the email still succeeds |
 | Railway storage bucket | Resume files | Upload fails immediately with a clear error; reading a resume shows an error, nothing else breaks |
 | Google OAuth | "Continue with Google" | Button shows an error; password login unaffected |
-| Google Calendar API | Interview events | Interview is still created and emailed; event creation retries via the worker, then is marked failed |
+| Google Calendar API | Interview events | Interview is still created and emailed; the `calendar_event` job retries via the worker, then the interview's `calendar_sync_status` becomes `failed` (shown on screen) |
 
 - Timeout and retry policy per integration — never an unbounded wait: every outbound call sets an
   explicit timeout. Values: SMTP 10 seconds per network step (connect, each command); the other

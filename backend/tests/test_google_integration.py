@@ -5,6 +5,10 @@ token every time, our signed `state`), use only https and short timeouts, tell "
 "Google said no", and never put a token or secret into an error.
 """
 
+import re
+import uuid
+from dataclasses import replace
+from datetime import datetime, timedelta, timezone
 from urllib.parse import parse_qs, urlsplit
 
 import pytest
@@ -178,3 +182,94 @@ def test_errors_never_carry_a_token_or_a_secret(fake_google: FakeGoogle) -> None
         text = f"{error} {error!r}"
         for secret in ("r-secret-token", GOOGLE_CLIENT_SECRET, "LEAK"):
             assert secret not in text
+
+
+# ---- events ------------------------------------------------------------------------------------
+
+ACCESS = "fresh-access-token"  # what the fake hands out for a known refresh token
+
+
+def details(**changes: object) -> google.EventDetails:
+    base = google.EventDetails(
+        title="Interview: Cara - Backend",
+        description="Round: Technical",
+        location="Room 4",
+        starts_at=datetime(2026, 3, 2, 15, 30, tzinfo=timezone(timedelta(hours=2))),
+        ends_at=datetime(2026, 3, 2, 16, 15, tzinfo=timezone(timedelta(hours=2))),
+        attendee_emails=("ivy@acme.test",),
+    )
+    return replace(base, **changes)  # type: ignore[arg-type]
+
+
+def test_the_event_id_is_stable_and_allowed_by_google() -> None:
+    interview_id = uuid.uuid4()
+
+    assert google.event_id_for(interview_id) == google.event_id_for(interview_id)
+    assert google.event_id_for(interview_id) != google.event_id_for(uuid.uuid4())
+    # Google accepts only a-v and 0-9, 5 to 1024 characters.
+    assert re.fullmatch(r"[a-v0-9]{5,1024}", google.event_id_for(interview_id))
+
+
+def test_an_event_is_created_with_times_in_utc(fake_google: FakeGoogle) -> None:
+    google.upsert_event(ACCESS, "abc12", details())
+
+    event = fake_google.events["abc12"]
+    # 15:30 at +02:00 is 13:30 UTC: Google is always given UTC, whatever zone the value has.
+    assert event["start"] == {"dateTime": "2026-03-02T13:30:00Z", "timeZone": "UTC"}
+    assert event["end"] == {"dateTime": "2026-03-02T14:15:00Z", "timeZone": "UTC"}
+    assert event["attendees"] == [{"email": "ivy@acme.test"}]
+    # So that changing an event someone deleted in Google brings it back, not into the bin.
+    assert event["status"] == "confirmed"
+    call = fake_google.calendar_calls()[0]
+    assert call.query == {"sendUpdates": "none"} and call.url.startswith("https://")
+
+
+def test_creating_an_event_that_exists_changes_it(fake_google: FakeGoogle) -> None:
+    google.upsert_event(ACCESS, "abc12", details())
+
+    google.upsert_event(ACCESS, "abc12", details(location="Room 9"))
+
+    assert fake_google.events["abc12"]["location"] == "Room 9"
+    assert [call.method for call in fake_google.calendar_calls()] == ["POST", "POST", "PATCH"]
+
+
+def test_an_event_is_deleted_and_deleting_it_again_is_fine(fake_google: FakeGoogle) -> None:
+    google.upsert_event(ACCESS, "abc12", details())
+
+    google.delete_event(ACCESS, "abc12")
+    google.delete_event(ACCESS, "abc12")  # Google says 404: already gone
+
+    assert fake_google.events == {}
+
+
+def test_an_event_call_without_a_valid_token_is_refused(fake_google: FakeGoogle) -> None:
+    with pytest.raises(google.GoogleRefused):
+        google.upsert_event("not-a-token", "abc12", details())
+
+
+def test_event_calls_tell_down_from_no(fake_google: FakeGoogle) -> None:
+    fake_google.fail_next(status=503)
+    with pytest.raises(google.GoogleUnavailable):
+        google.upsert_event(ACCESS, "abc12", details())
+    fake_google.fail_next(raises=TimeoutError("slow"))
+    with pytest.raises(google.GoogleUnavailable):
+        google.delete_event(ACCESS, "abc12")
+    fake_google.fail_next(status=403, body=b'{"error": {"message": "secret detail"}}')
+    with pytest.raises(google.GoogleRefused) as refused:
+        google.delete_event(ACCESS, "abc12")
+    assert "secret detail" not in str(refused.value)
+
+
+def test_an_event_error_never_carries_the_token(fake_google: FakeGoogle) -> None:
+    fake_google.fail_next(status=403, body=f'{{"error": "{ACCESS}"}}'.encode())
+
+    with pytest.raises(google.GoogleRefused) as refused:
+        google.upsert_event(ACCESS, "abc12", details())
+
+    assert ACCESS not in str(refused.value) and refused.value.reason == "unknown"
+
+
+def test_event_calls_use_a_timeout(fake_google: FakeGoogle) -> None:
+    google.upsert_event(ACCESS, "abc12", details())
+
+    assert fake_google.calendar_calls()[0].timeout == google.TIMEOUT_SECONDS

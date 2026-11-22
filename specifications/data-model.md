@@ -199,7 +199,9 @@ above.
 - **Key fields:** `id`, `company_id`, `application_id`, `round_name`, `scheduled_at` (UTC),
   `duration_minutes`, `location` (free text), `status` (`scheduled` | `completed` | `cancelled`),
   `scheduled_by`, `google_event_id` (nullable), `calendar_sync_status`
-  (`not_requested` | `pending` | `synced` | `failed`), `created_at`.
+  (`not_requested` | `pending` | `synced` | `failed`), `created_at`. `google_event_id` is set
+  while the interview's event exists on the scheduling recruiter's calendar (it is derived from
+  the interview id) and cleared when the event is removed.
 - **Relationships:** belongs to `Application`; has many `InterviewParticipant`, `Scorecard`.
 - **Lifecycle:** Created by a recruiter. Cancelling and rescheduling are built (every change bumps the version). Also has a `version` (optimistic locking, like
   `Application`) and `updated_at`. `completed` is set automatically once every active interviewer

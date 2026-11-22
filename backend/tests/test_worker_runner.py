@@ -8,6 +8,7 @@ payloads.
 
 import json
 import threading
+import uuid
 from collections.abc import Mapping
 from datetime import UTC, datetime, timedelta
 
@@ -275,3 +276,79 @@ def test_a_database_error_does_not_kill_the_worker(
     run_loop_until_stopped(db, stop, {"test": handler})
 
     assert reload(db, "a").status == JobStatus.SUCCEEDED
+
+
+# ---- final-failure hooks --------------------------------------------------------------------
+
+
+def test_the_hook_runs_once_after_the_last_failed_attempt_and_is_committed(db: Session) -> None:
+    add_job(db, "a")
+    fail_on_last_attempt(db, "a")
+    seen: list[tuple[str, str]] = []
+
+    def hook(hook_db: Session, job: BackgroundJob) -> None:
+        seen.append((job.type, job.idempotency_key))
+        hook_db.add(
+            AuditLog(action="hook.ran", entity_type="job", entity_id=uuid.uuid4(), created_at=NOW)
+        )
+
+    runner.run_one_job(db, {"test": always_fails}, clock, {"test": hook})
+
+    assert seen == [("test", "a")]
+    assert reload(db, "a").status == JobStatus.FAILED
+    db.rollback()  # whatever was not committed would vanish here
+    assert db.scalars(select(AuditLog.action)).all() == ["hook.ran"]
+
+
+def test_the_hook_does_not_run_while_the_job_will_still_be_retried(db: Session) -> None:
+    add_job(db, "a")
+    seen: list[str] = []
+
+    runner.run_one_job(
+        db, {"test": always_fails}, clock, {"test": lambda _db, job: seen.append(job.type)}
+    )
+
+    assert seen == [] and reload(db, "a").status == JobStatus.PENDING
+
+
+def test_the_hook_does_not_run_for_a_job_that_succeeds(db: Session) -> None:
+    add_job(db, "a")
+    seen: list[str] = []
+
+    runner.run_one_job(
+        db,
+        {"test": lambda _db, _job: None},
+        clock,
+        {"test": lambda _db, job: seen.append(job.type)},
+    )
+
+    assert seen == [] and reload(db, "a").status == JobStatus.SUCCEEDED
+
+
+def test_a_hook_belongs_to_one_job_type(db: Session) -> None:
+    add_job(db, "a", type="other")
+    fail_on_last_attempt(db, "a")
+    seen: list[str] = []
+
+    runner.run_one_job(
+        db, {"other": always_fails}, clock, {"test": lambda _db, job: seen.append(job.type)}
+    )
+
+    assert seen == [] and reload(db, "a").status == JobStatus.FAILED
+
+
+def test_a_hook_that_fails_is_dropped_and_the_job_stays_failed(db: Session) -> None:
+    add_job(db, "a")
+    fail_on_last_attempt(db, "a")
+
+    def broken_hook(hook_db: Session, _job: BackgroundJob) -> None:
+        hook_db.add(
+            AuditLog(action="half.done", entity_type="job", entity_id=uuid.uuid4(), created_at=NOW)
+        )
+        raise RuntimeError("hook broke")
+
+    ran = runner.run_one_job(db, {"test": always_fails}, clock, {"test": broken_hook})
+
+    assert ran is True
+    assert reload(db, "a").status == JobStatus.FAILED
+    assert db.scalars(select(AuditLog.action)).all() == []  # the hook's own changes are undone

@@ -3,6 +3,11 @@
 Handlers are plain functions `handler(db, job)`. They do their work and return; they never commit
 (the runner commits their database changes together with marking the job done) and they raise to
 signal failure. Their changes are rolled back on failure, so a retry starts clean.
+
+A job type may also have a final-failure hook: it runs once, after the LAST failed attempt, and is
+committed on its own (a job that will be retried has not failed yet). It exists so something the
+person can see, such as "calendar sync failed", can be recorded. A hook that itself fails is logged
+and dropped: it must never stop the worker.
 """
 
 import logging
@@ -19,6 +24,7 @@ from app.worker import heartbeat, maintenance, queue
 logger = logging.getLogger("ats.worker")
 
 Handler = Callable[[Session, BackgroundJob], None]
+FinalFailureHook = Callable[[Session, BackgroundJob], None]
 Clock = Callable[[], datetime]
 
 POLL_SECONDS = 2.0
@@ -28,7 +34,12 @@ def utc_now() -> datetime:
     return datetime.now(UTC)
 
 
-def run_one_job(db: Session, handlers: Mapping[str, Handler], clock: Clock = utc_now) -> bool:
+def run_one_job(
+    db: Session,
+    handlers: Mapping[str, Handler],
+    clock: Clock = utc_now,
+    final_failure_hooks: Mapping[str, FinalFailureHook] | None = None,
+) -> bool:
     """Run the next due job, if any. Returns whether there was one."""
     job = queue.claim_next(db, clock())
     if job is None:
@@ -59,6 +70,9 @@ def run_one_job(db: Session, handlers: Mapping[str, Handler], clock: Clock = utc
                 "error_type": type(error).__name__,
             },
         )
+        hook = (final_failure_hooks or {}).get(job_type)
+        if outcome == "failed" and hook is not None:
+            _run_final_failure_hook(db, hook, job, job_id, job_type)
     else:
         queue.complete(db, job, clock())
         logger.info(
@@ -73,6 +87,20 @@ def run_one_job(db: Session, handlers: Mapping[str, Handler], clock: Clock = utc
     return True
 
 
+def _run_final_failure_hook(
+    db: Session, hook: FinalFailureHook, job: BackgroundJob, job_id: str, job_type: str
+) -> None:
+    try:
+        hook(db, job)
+        db.commit()
+    except Exception as error:  # noqa: BLE001 - see the module docstring: never stop the worker
+        db.rollback()
+        logger.error(
+            "final failure hook failed",
+            extra={"job_id": job_id, "job_type": job_type, "error_type": type(error).__name__},
+        )
+
+
 def run_loop(
     db: Session,
     stop: threading.Event,
@@ -81,6 +109,7 @@ def run_loop(
     clock: Clock = utc_now,
     deployment_id: str | None = None,
     schedule_hourly_maintenance: bool = True,
+    final_failure_hooks: Mapping[str, FinalFailureHook] | None = None,
 ) -> None:
     """Work until `stop` is set. A job already running is finished first, never cut off."""
     scheduled_hour: str | None = None
@@ -93,7 +122,7 @@ def run_loop(
                 maintenance.schedule_maintenance(db, clock())
                 scheduled_hour = hour
             queue.requeue_stuck(db, clock())
-            did_work = run_one_job(db, handlers, clock)
+            did_work = run_one_job(db, handlers, clock, final_failure_hooks)
         except SQLAlchemyError:
             # A database hiccup (restart, dropped connection) should not end the worker: Railway
             # would restart it anyway, but waiting and retrying is quicker and quieter.

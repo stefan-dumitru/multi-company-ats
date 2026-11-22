@@ -110,7 +110,10 @@ This section covers how it's implemented and how it fails.
   (their stored tokens can no longer be read; disconnecting still works). The OAuth client secret is
   never sent through the browser and never printed. The way back from Google is protected by a signed,
   10-minute `state` made for the logged-in person (not replayable by someone else). Only the narrowest
-  permission (`calendar.events`) is requested.
+  permission (`calendar.events`) is requested. What leaves the app for Google when an interview is
+  synced: the candidate's name, the job title, the round, the location, the time, and the
+  interviewers' email addresses (as attendees), onto the scheduling recruiter's own calendar.
+  Resumes, notes and scorecards are never sent. None of it, and no token, is written to a log.
 - Transit security beyond the HTTPS baseline in CLAUDE.md: [TODO — confirm that app-to-database
   traffic is private/TLS on Railway]
 - Fields requiring extra protection: `password_hash`, session tokens (`Session`) stored only as hashes; invitation and

@@ -17,7 +17,7 @@ from app.config import (
 )
 from app.db import get_engine
 from app.logging import configure_logging
-from app.worker.handlers import HANDLERS
+from app.worker.handlers import FINAL_FAILURE_HOOKS, HANDLERS
 from app.worker.runner import run_loop
 from app.worker.status import format_status
 
@@ -43,7 +43,13 @@ def run_worker() -> None:
 
     logger.info("worker started")
     with Session(get_engine()) as db:
-        run_loop(db, stop, HANDLERS, deployment_id=get_deployment_id())
+        run_loop(
+            db,
+            stop,
+            HANDLERS,
+            deployment_id=get_deployment_id(),
+            final_failure_hooks=FINAL_FAILURE_HOOKS,
+        )
     logger.info("worker stopped")
 
 
