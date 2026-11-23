@@ -8,6 +8,7 @@ import { safeReturnPath } from '@/auth/returnPath'
 import type { SessionInfo } from '@/auth/types'
 import AuthCard from '@/components/AuthCard'
 import FormField from '@/components/FormField'
+import GoogleSignIn from '@/components/GoogleSignIn'
 import { Button } from '@/components/ui/button'
 
 /** Sign-up for job seekers. (Companies register on their own page.) */
@@ -94,6 +95,7 @@ export default function RegisterCandidatePage() {
           {submitting ? 'Creating…' : 'Create account'}
         </Button>
       </form>
+      <GoogleSignIn />
       <p className="text-sm text-muted-foreground">
         Already have an account?{' '}
         <Link to="/login" className="text-primary underline underline-offset-4">
