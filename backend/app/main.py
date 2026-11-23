@@ -26,6 +26,7 @@ from app.routers import (
     candidates,
     companies,
     departments,
+    google_login,
     interviews,
     invitations,
     jobs,
@@ -63,6 +64,7 @@ app.include_router(calendar.router)
 app.include_router(candidates.router)
 app.include_router(companies.router)
 app.include_router(departments.router)
+app.include_router(google_login.router)
 app.include_router(interviews.router)
 app.include_router(invitations.router)
 app.include_router(jobs.router)
