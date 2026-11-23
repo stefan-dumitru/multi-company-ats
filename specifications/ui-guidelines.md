@@ -11,7 +11,11 @@ in that feature's Plan Mode session, informed by this file — not spec'd upfron
   system font stack, so no web-font package is needed. A brand colour can replace `--primary`
   later without touching components.
 - Light/dark mode: Both, from the start. Colors are defined as theme tokens (CSS variables) so
-  components never hard-code a color; user preference defaults to the OS setting.
+  components never hard-code a color. A sun/moon button in the top bar switches between them at
+  any time; the choice is remembered in that browser (`localStorage`, key `ats-theme`, not tied to
+  the account), and until it is made the OS setting is followed (`src/theme.ts`).
+- Top menu bar: blue in both themes (tokens `--header` and `--header-foreground`, a deeper blue in
+  dark mode); the rest of the page is white (light) or near-black (dark).
 - Responsive targets (mobile, tablet, desktop — which are must-support): Candidate-facing pages
   (job search, job detail, apply, profile, application list) must work on mobile and desktop.
   Staff pages (pipeline, dashboards, user management) are desktop-first and must stay usable on
