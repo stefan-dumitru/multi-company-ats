@@ -111,8 +111,12 @@ Applies (the app is deployed to staging and production), at a minimal level:
   `TOKEN_ENCRYPTION_KEY` together or not at all (without them the app still starts and only the
   calendar page says the calendar is not set up; some but not all, or a missing `APP_BASE_URL` on
   the web service beside them, stops the web service at startup so the deploy fails instead of the
-  calendar page answering 500); the return address Google must be told is
-  `APP_BASE_URL` + `/api/calendar/callback`. Local-only: `STATIC_DIR`
+  calendar page answering 500); the return addresses Google must be told (Authorized redirect URIs
+  of the OAuth client, per environment) are `APP_BASE_URL` + `/api/calendar/callback` (calendar)
+  and `APP_BASE_URL` + `/api/auth/google/callback` (sign-in). The same client, settings and consent
+  screen serve both; sign-in asks only for `openid email profile`. While the consent screen is in
+  Testing, only listed test users get in and Google expires refresh tokens after 7 days, so a
+  calendar connection silently lapses; publishing the app removes both limits. Local-only: `STATIC_DIR`
   is set by the Dockerfile, `COOKIE_SECURE` by `.env`. GitHub environment secret `RAILWAY_TOKEN` and
   variables `RAILWAY_ENVIRONMENT_ID`, `RAILWAY_SERVICE_ID`, `RAILWAY_WORKER_SERVICE_ID`, `APP_URL`,
   set separately on `staging` and `production`. `COOKIE_SECURE` (default on, so Railway needs nothing) is the one runtime

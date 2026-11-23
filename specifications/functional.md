@@ -26,7 +26,10 @@ How it's implemented, and what happens when it fails, is in `security.md` > Auth
   an external system? The app handles its own login (email + password, with email verification).
   Google login is an additional method in v1 (Phase 8), not an SSO replacement. No external
   system authenticates users on the app's behalf.
-- Who may use Google login: candidates. Whether company staff may also use it: [TODO]
+- Who may use Google login: everyone, staff included. Google never grants a role: a person signs in
+  as the account they already have, and an unknown email always becomes a candidate, never staff.
+  Built (Phase 8): a "Continue with Google" link on the login and candidate sign-up pages, shown
+  only when the server has Google set up (`GET /api/auth/google/config`).
 - Google Calendar is a separate connection from Google login: a company user connects their
   Google account to let the app create interview events (see "Schedule an interview").
   Built (connection only): a recruiter connects through Google's consent window
@@ -476,14 +479,26 @@ The roles table above says *what* each role can do. This section says *how*.
 
 ### Sign in with Google and link accounts
 
-- **Role(s):** Candidate (staff: [TODO]).
-- **Trigger:** "Continue with Google" button.
+- **Role(s):** Everyone with an account, and anyone new (who becomes a candidate).
+- **Trigger:** "Continue with Google" button (a plain link to `/api/auth/google/start`).
 - **Main flow:** Standard OAuth sign-in. If no account has that email, a candidate account is
   created, already verified.
 - **Rules & edge cases:** If an account with the same email exists, the Google identity is linked
   only if Google reports the email as verified **and** the existing account's email is verified.
   Otherwise the sign-in is refused with a message to log in with the password first. Google login
   never grants a role other than candidate on its own.
+- **How it is decided (built, Phase 8):** (1) a person whose Google id (`sub`) we already know is
+  that same person, even if their email changed; (2) otherwise an account with the same email
+  (compared case-insensitively) is linked only if Google says the email is verified AND the
+  account's email is verified, so a staff member who has not confirmed their invitation address
+  yet is refused like any unverified account; (3) otherwise a new candidate is created, already
+  verified, with no password ("Forgot password" can add one). Google not vouching for the address
+  creates and links nothing. Deactivated and anonymized accounts are refused whichever way they
+  are found, with one generic message. The refusals send the person back to `/login` with a short
+  code the page turns into words (never Google's text).
+- **Protection of the way back:** a signed 10-minute state plus a cookie only the starting browser
+  holds (login CSRF), and redirects only to fixed addresses of ours. The page asks Google for
+  `openid email profile` only and stores nothing from Google.
 
 ---
 
