@@ -14,7 +14,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.auth.permissions import public_route
-from app.config import get_secret_key, get_static_dir
+from app.config import get_google_settings, get_secret_key, get_static_dir
 from app.db import get_db
 from app.error_handlers import add_error_handlers
 from app.frontend import mount_frontend
@@ -48,6 +48,9 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     # Fail at startup, not on the first invitation: without the key the health check never passes
     # and the deploy is stopped (and rolled back) before users see anything.
     get_secret_key()
+    # The same for Google: half-set values, or no APP_BASE_URL beside them, would otherwise show up
+    # as a 500 on the calendar page while the deploy looks healthy. Not set at all is fine.
+    get_google_settings()
     yield
 
 

@@ -109,7 +109,9 @@ Applies (the app is deployed to staging and production), at a minimal level:
   `S3_ADDRESSING_STYLE`; the endpoint must be https except for a server on this machine. Google
   Calendar (web service and worker, from Phase 7): `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` and
   `TOKEN_ENCRYPTION_KEY` together or not at all (without them the app still starts and only the
-  calendar page says the calendar is not set up); the return address Google must be told is
+  calendar page says the calendar is not set up; some but not all, or a missing `APP_BASE_URL` on
+  the web service beside them, stops the web service at startup so the deploy fails instead of the
+  calendar page answering 500); the return address Google must be told is
   `APP_BASE_URL` + `/api/calendar/callback`. Local-only: `STATIC_DIR`
   is set by the Dockerfile, `COOKIE_SECURE` by `.env`. GitHub environment secret `RAILWAY_TOKEN` and
   variables `RAILWAY_ENVIRONMENT_ID`, `RAILWAY_SERVICE_ID`, `RAILWAY_WORKER_SERVICE_ID`, `APP_URL`,

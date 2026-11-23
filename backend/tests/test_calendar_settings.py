@@ -91,3 +91,47 @@ def test_the_secrets_never_appear_in_a_printout(monkeypatch: pytest.MonkeyPatch)
 
     shown = repr(settings) + str(settings)
     assert "very-secret-client-secret" not in shown and key not in shown
+
+
+# ---- startup: a wrong setting stops the deploy instead of failing on a recruiter's screen -------
+# Found on staging: the web service had the Google settings but no APP_BASE_URL (only the worker
+# did), so every GET /api/calendar answered 500 while the deploy looked healthy.
+
+
+def start_web_app() -> None:
+    from fastapi.testclient import TestClient
+
+    from app.main import app
+
+    with TestClient(app):  # entering the block runs the startup checks
+        pass
+
+
+def test_the_web_app_refuses_to_start_when_google_is_set_but_the_site_address_is_not(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    set_all(monkeypatch)
+    monkeypatch.delenv("APP_BASE_URL")
+    monkeypatch.setenv("SECRET_KEY", "x" * 40)
+
+    with pytest.raises(RuntimeError, match="APP_BASE_URL"):
+        start_web_app()
+
+
+def test_the_web_app_refuses_to_start_with_only_some_google_settings(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("GOOGLE_CLIENT_ID", "client-id.apps.googleusercontent.com")
+    monkeypatch.setenv("SECRET_KEY", "x" * 40)
+
+    with pytest.raises(RuntimeError, match="not set, but other Google settings are"):
+        start_web_app()
+
+
+def test_the_web_app_starts_without_any_google_settings_and_without_a_site_address(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("APP_BASE_URL")
+    monkeypatch.setenv("SECRET_KEY", "x" * 40)
+
+    start_web_app()  # the calendar is optional: nothing else changes
