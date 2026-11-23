@@ -3,6 +3,7 @@ import { Link, Outlet } from 'react-router'
 import { useAuth } from '@/auth/AuthContext'
 import { navItemsFor } from '@/auth/navigation'
 import { Button } from '@/components/ui/button'
+import ThemeToggle from './ThemeToggle'
 
 export default function Layout() {
   const { state, logout } = useAuth()
@@ -20,7 +21,7 @@ export default function Layout() {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <header className="border-b">
+      <header className="bg-header text-header-foreground">
         <div className="mx-auto flex max-w-4xl flex-wrap items-center gap-4 px-4 py-3">
           <Link to="/" className="font-semibold">
             Applicant Tracking System
@@ -39,8 +40,14 @@ export default function Layout() {
                 ))}
               </nav>
               <div className="ml-auto flex items-center gap-3">
-                <span className="text-sm text-muted-foreground">{state.user.full_name}</span>
-                <Button variant="outline" size="sm" onClick={() => void handleLogout()}>
+                <span className="text-sm text-header-foreground/80">{state.user.full_name}</span>
+                <ThemeToggle />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => void handleLogout()}
+                  className="border-header-foreground/40 bg-transparent text-header-foreground hover:bg-header-foreground/15 hover:text-header-foreground"
+                >
                   Log out
                 </Button>
               </div>
@@ -60,11 +67,15 @@ export default function Layout() {
               <Link to="/register" className="underline-offset-4 hover:underline">
                 Register your company
               </Link>
+              <ThemeToggle />
             </nav>
           )}
         </div>
         {logoutError && (
-          <p role="alert" className="mx-auto max-w-4xl px-4 pb-3 text-sm text-destructive">
+          <p
+            role="alert"
+            className="mx-auto max-w-4xl px-4 pb-3 text-sm font-medium text-header-foreground"
+          >
             {logoutError}
           </p>
         )}

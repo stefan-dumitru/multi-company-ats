@@ -64,6 +64,19 @@ describe('Layout', () => {
     )
   })
 
+  it('offers the theme switch to visitors and to people who are logged in', async () => {
+    stubFetch({ 'GET /api/auth/me': { status: 401 } })
+    const visitor = renderLayout()
+    await screen.findByText('page content')
+    expect(screen.getByRole('button', { name: /switch to .* theme/i })).toBeInTheDocument()
+    visitor.unmount()
+
+    stubFetch({ 'GET /api/auth/me': { status: 200, body: sessionFor(adminUser) } })
+    renderLayout()
+    await screen.findByText('Ada Admin')
+    expect(screen.getByRole('button', { name: /switch to .* theme/i })).toBeInTheDocument()
+  })
+
   it('does not offer those to someone who is already logged in', async () => {
     stubFetch({ 'GET /api/auth/me': { status: 200, body: sessionFor(adminUser) } })
 
