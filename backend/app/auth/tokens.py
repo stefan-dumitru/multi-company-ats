@@ -26,6 +26,7 @@ INVITATION = "invitation"
 EMAIL_VERIFICATION = "email_verification"
 PASSWORD_RESET = "password_reset"
 GOOGLE_CALENDAR = "google_calendar"
+GOOGLE_LOGIN = "google_login"
 
 # A real link is 36 + 1 + 64 characters; anything much longer is not worth looking at.
 MAX_TOKEN_LENGTH = 200

@@ -8,7 +8,9 @@ token, a valid access token, an event id that is not taken), records every call,
 fail the next one.
 """
 
+import base64
 import json
+import time
 from dataclasses import dataclass, field
 from typing import Any
 from urllib.parse import parse_qs, unquote, urlsplit
@@ -47,6 +49,39 @@ class FakeGoogle:
     failures: list[Failure] = field(default_factory=list)
     # event id -> the event as Google would hold it (what the last create or change sent)
     events: dict[str, dict[str, Any]] = field(default_factory=dict)
+    # Sign-in (not calendar): code -> the ID token Google hands back for it
+    login_redirect_uri: str = "https://ats.test/api/auth/google/callback"
+    login_codes: dict[str, str] = field(default_factory=dict)
+
+    def grant_login_code(
+        self,
+        code: str,
+        *,
+        subject: str = "google-sub-1",
+        email: str = "person@example.test",
+        email_verified: bool | str = True,
+        name: str | None = "Pat Person",
+        audience: str | None = None,
+        issuer: str = "https://accounts.google.com",
+        expires_in: int = 3600,
+        id_token: str | None = None,
+    ) -> None:
+        """Make this code exchangeable for an ID token, as after someone signs in at Google.
+
+        The token is unsigned on purpose: our code reads it without checking a signature (it comes
+        straight from Google's token endpoint over TLS), so the fake need not sign it either.
+        """
+        claims: dict[str, Any] = {
+            "iss": issuer,
+            "aud": audience if audience is not None else self.client_id,
+            "sub": subject,
+            "email": email,
+            "email_verified": email_verified,
+            "exp": int(time.time()) + expires_in,
+        }
+        if name is not None:
+            claims["name"] = name
+        self.login_codes[code] = id_token if id_token is not None else make_id_token(claims)
 
     def grant_code(
         self,
@@ -132,6 +167,12 @@ class FakeGoogle:
             or form.get("client_secret") != self.client_secret
         ):
             return 401, json.dumps({"error": "invalid_client"}).encode()
+        if form.get("grant_type") == "authorization_code" and form.get("code") in self.login_codes:
+            token = self.login_codes.pop(form["code"])  # a code works once
+            if form.get("redirect_uri") != self.login_redirect_uri:
+                return 400, json.dumps({"error": "invalid_grant"}).encode()
+            answer_body = {"access_token": "login-access-token", "id_token": token}
+            return 200, json.dumps(answer_body).encode()
         if form.get("grant_type") == "authorization_code":
             answer = self.codes.pop(form.get("code", ""), None)  # a code works once
             if answer is None or form.get("redirect_uri") != self.redirect_uri:
@@ -145,3 +186,13 @@ class FakeGoogle:
                 json.dumps({"access_token": "fresh-access-token", "expires_in": 3599}).encode(),
             )
         return 400, json.dumps({"error": "unsupported_grant_type"}).encode()
+
+
+def make_id_token(claims: dict[str, Any]) -> str:
+    """A JWT-shaped string with these claims and a signature that is not one."""
+
+    def part(data: bytes) -> str:
+        return base64.urlsafe_b64encode(data).rstrip(b"=").decode()
+
+    header = part(json.dumps({"alg": "RS256", "typ": "JWT"}).encode())
+    return f"{header}.{part(json.dumps(claims).encode())}.{part(b'not-a-real-signature')}"

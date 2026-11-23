@@ -423,6 +423,10 @@ NOT_COMPANY_SCOPED = {
     "GET /health/worker": "no data",
     "GET /health/jobs": "no data",
     "POST /api/auth/login": "public; the user is found by their own credentials",
+    "GET /api/auth/google/config": "public; says only whether Google is set up here",
+    "GET /api/auth/google/start": "public; takes no id; sends the browser to Google",
+    "GET /api/auth/google/callback": "public; the person is found by their Google id or "
+    "verified email, never an id the caller supplies (tests/test_google_login.py)",
     "GET /api/auth/me": "returns the caller's own session only",
     "GET /api/calendar": OWN_GOOGLE_CONNECTION,
     "POST /api/calendar/connect": OWN_GOOGLE_CONNECTION,

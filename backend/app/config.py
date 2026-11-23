@@ -221,7 +221,8 @@ class GoogleSettings:
     client_id: str
     client_secret: str = field(repr=False)  # repr=False: never printed by accident
     encryption_key: str = field(repr=False)
-    redirect_uri: str
+    redirect_uri: str  # where Google sends a recruiter back after the calendar window
+    login_redirect_uri: str  # and where it sends anyone back after "Continue with Google"
 
 
 _GOOGLE_REQUIRED = ("GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "TOKEN_ENCRYPTION_KEY")
@@ -250,9 +251,11 @@ def get_google_settings() -> GoogleSettings | None:
             "TOKEN_ENCRYPTION_KEY is not a valid key. Generate one with: python -c "
             '"from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"'
         ) from None
+    base_url = get_app_base_url()
     return GoogleSettings(
         client_id=values["GOOGLE_CLIENT_ID"],
         client_secret=values["GOOGLE_CLIENT_SECRET"],
         encryption_key=values["TOKEN_ENCRYPTION_KEY"],
-        redirect_uri=f"{get_app_base_url()}/api/calendar/callback",
+        redirect_uri=f"{base_url}/api/calendar/callback",
+        login_redirect_uri=f"{base_url}/api/auth/google/callback",
     )

@@ -14,6 +14,7 @@ Rules that matter, kept in one place:
   Google's short error name (checked to be plain letters), nothing else.
 """
 
+import base64
 import json
 import re
 import urllib.error
@@ -34,6 +35,11 @@ REVOKE_URL = "https://oauth2.googleapis.com/revoke"
 EVENTS_URL = "https://www.googleapis.com/calendar/v3/calendars/primary/events"
 # The narrowest permission that lets us create, change and delete events (and nothing else).
 SCOPE = "https://www.googleapis.com/auth/calendar.events"
+
+# Signing in asks only who the person is: no calendar, and nothing we keep from Google afterwards.
+LOGIN_SCOPE = "openid email profile"
+# Google puts one of these in the ID token's issuer claim.
+LOGIN_ISSUERS = ("https://accounts.google.com", "accounts.google.com")
 
 # Never wait for ever (operations.md > External Services).
 TIMEOUT_SECONDS = 10
@@ -176,6 +182,106 @@ def exchange_code(settings: GoogleSettings, code: str) -> TokenGrant:
         access_token=access_token if isinstance(access_token, str) else "",
         scope=scope,
     )
+
+
+@dataclass(frozen=True)
+class GoogleIdentity:
+    """Who Google says the person is. `subject` is Google's own id for them: it never changes."""
+
+    subject: str
+    email: str
+    email_verified: bool
+    full_name: str
+
+
+def login_authorization_url(settings: GoogleSettings, state: str) -> str:
+    """Where to send the browser so the person can say who they are (and nothing more)."""
+    query = urlencode(
+        {
+            "client_id": settings.client_id,
+            "redirect_uri": settings.login_redirect_uri,
+            "response_type": "code",
+            "scope": LOGIN_SCOPE,
+            # Always show the account chooser: a shared computer must not sign in as whoever was
+            # last signed in to Google.
+            "prompt": "select_account",
+            "state": state,
+        }
+    )
+    return f"{AUTH_URL}?{query}"
+
+
+def exchange_login_code(settings: GoogleSettings, code: str, now: datetime) -> GoogleIdentity:
+    """Trade the one-time code for who the person is.
+
+    The ID token comes straight from Google's token endpoint over TLS, so its signature is not
+    checked (OpenID Connect Core 3.1.3.7 allows that); what it says is still checked: that it is
+    from Google, for this app, and not expired.
+    """
+    answer = _post(
+        TOKEN_URL,
+        {
+            "grant_type": "authorization_code",
+            "code": code,
+            "client_id": settings.client_id,
+            "client_secret": settings.client_secret,
+            "redirect_uri": settings.login_redirect_uri,
+        },
+    )
+    id_token = answer.get("id_token")
+    if not isinstance(id_token, str):
+        raise GoogleRefused("no_id_token")
+    return _read_id_token(settings, id_token, now)
+
+
+def _read_id_token(settings: GoogleSettings, id_token: str, now: datetime) -> GoogleIdentity:
+    claims = _claims_of(id_token)
+    audience = claims.get("aud")
+    audience_ok = audience == settings.client_id or (
+        isinstance(audience, list) and settings.client_id in audience
+    )
+    expires = claims.get("exp")
+    subject = claims.get("sub")
+    email = claims.get("email")
+    name = claims.get("name")
+    # `bool` is a kind of int in Python, so it is ruled out for the expiry explicitly.
+    not_expired = (
+        isinstance(expires, int)
+        and not isinstance(expires, bool)
+        and expires > int(now.timestamp())
+    )
+    if (
+        claims.get("iss") not in LOGIN_ISSUERS
+        or not audience_ok
+        or not not_expired
+        or not isinstance(subject, str)
+        or not 0 < len(subject) <= 255
+        or not isinstance(email, str)
+        or not 0 < len(email) <= 320
+    ):
+        raise GoogleRefused("bad_id_token")
+    return GoogleIdentity(
+        subject=subject,
+        email=email,
+        # Seen as a real boolean and, at times, as the word "true".
+        email_verified=claims.get("email_verified") in (True, "true"),
+        full_name=name.strip() if isinstance(name, str) else "",
+    )
+
+
+def _claims_of(id_token: str) -> dict[str, Any]:
+    """The middle part of a JWT: base64url-encoded JSON. Anything else is "not a valid token"."""
+    parts = id_token.split(".")
+    if len(parts) != 3:
+        raise GoogleRefused("bad_id_token")
+    try:
+        padded = parts[1] + "=" * (-len(parts[1]) % 4)
+        claims = json.loads(base64.urlsafe_b64decode(padded))
+    except ValueError:
+        raise GoogleRefused("bad_id_token") from None
+    if not isinstance(claims, dict):
+        raise GoogleRefused("bad_id_token")
+    return claims
 
 
 def refresh_access_token(settings: GoogleSettings, refresh_token: str) -> str:
