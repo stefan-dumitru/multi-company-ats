@@ -20,7 +20,7 @@ In this app: `Company`, `User`, `CandidateProfile`, `Department`, `Job`, `JobRec
 master data. `Application`, `ApplicationStageHistory`, `Interview`, `Scorecard`, `Note`,
 `AuditLog` are transactional (an `Application` is the exception: its stage and version change in
 place, with every change also recorded in history). Technical records (`Session`, `Invitation`,
-`UserToken`, `BackgroundJob`, `File`, `OAuthIdentity`, `GoogleCalendarConnection`) support the
+`UserToken`, `BackgroundJob`, `File`, `ExternalIdentity`, `GoogleCalendarConnection`) support the
 above.
 
 ## Conventions for every entity
@@ -54,7 +54,7 @@ above.
   `email_verified_at`, `is_active`, `deactivated_at`, `last_login_at`, `created_at`,
   `anonymized_at`.
 - **Relationships:** belongs to `Company` (many-to-one, staff only); one-to-one with
-  `CandidateProfile` (candidates only); has many `Session`, `OAuthIdentity`.
+  `CandidateProfile` (candidates only); has many `Session`, `ExternalIdentity`.
 - **Lifecycle:** Staff are created by accepting an `Invitation`; candidates by self-registration
   or Google sign-in. Role changes by a company admin. Staff are deactivated, never deleted.
   Candidates are anonymized on account deletion (name, email and phone replaced; `anonymized_at`
@@ -314,8 +314,14 @@ above.
   state the signature cannot carry. Single-use: "unused and unexpired" is decided by one atomic
   UPDATE. Issuing a new link voids the user's older unused ones. Index on
   (`user_id`, `type`, `created_at`) for the hourly resend limit.
-- **OAuthIdentity:** `id`, `user_id`, `provider` (`google`), `provider_subject`, `linked_at`.
-  Unique (`provider`, `provider_subject`).
+- **ExternalIdentity:** `id`, `user_id` (deleted with the user), `provider` (`google`, enforced by a
+  check), `subject` (Google's own stable id for the person, never their email), `created_at`.
+  Unique (`provider`, `subject`): one Google account is one person here; unique (`user_id`,
+  `provider`): one person has at most one Google account linked. Built (Phase 8). Holds no token:
+  signing in keeps nothing from Google. Created when a person first signs in with Google (audited
+  `account.google_created` for a new candidate, `account.google_linked` for an existing account);
+  there is no unlink in v1. Anonymizing an account must also delete its rows (nothing anonymizes
+  accounts yet; see `security.md`).
 - **GoogleCalendarConnection:** `user_id`, `refresh_token_encrypted`, `scopes`, `connected_at`.
   The refresh token is encrypted at rest (see `security.md` > Data Protection). Removing the
   connection deletes the row. Built (Phase 7): one row per recruiter (primary key `user_id`);

@@ -50,6 +50,11 @@ Phases 0 to 6 are done:
   appear on it, kept up to date by the background worker; if Google fails the interview is
   unaffected and shows that the sync failed. The calendar stays off until the server is given
   Google credentials.
+- **Phase 8:** sign in with Google, for everyone, as an extra way in beside the password. A known
+  Google account signs in as the same person; an existing account with the same verified email is
+  linked (only when both Google and the account say the email is verified); an unknown email
+  becomes a new verified candidate, never a staff account. Deactivated accounts are refused, and
+  nothing from Google is stored. It stays off until the server is given Google credentials.
 
 - Staging: https://multi-company-ats-staging.up.railway.app
 - Production: https://multi-company-ats-production.up.railway.app

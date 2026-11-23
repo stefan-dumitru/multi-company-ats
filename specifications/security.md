@@ -19,7 +19,7 @@ Which identity source this app uses is in `functional.md` > Authentication & Ide
 This section covers how it's implemented and how it fails.
 
 - If login is local: method: Email + password, with email verification. Google OAuth as an
-  additional method (Phase 8). Password hashing: bcrypt or argon2 per `CLAUDE.md`; library:
+  additional method (built, Phase 8). Password hashing: bcrypt or argon2 per `CLAUDE.md`; library:
   `argon2-cffi` (Argon2id). Password rules: minimum 12 and maximum 128 characters, no composition
   rules (length over symbols). Login is rate-limited per account and per IP: 5 failed attempts per
   email and 20 per IP within 15 minutes, then HTTP 429 until the window passes. Failures are kept
@@ -41,7 +41,13 @@ This section covers how it's implemented and how it fails.
   candidate account, never a staff account. An existing account is linked only if Google reports
   the email as verified and the existing account's email is verified too; otherwise refuse and
   ask the user to log in with the password first. A deactivated or anonymized user cannot sign in
-  by any method. Whether staff may use Google at all: [TODO]
+  by any method. Staff may use Google too: an existing, verified staff account is linked and keeps
+  its role and company; Google never creates or changes a role. Built (Phase 8): the ID token comes
+  straight from Google's token endpoint over TLS, so its signature is not checked (OpenID Connect
+  Core 3.1.3.7); issuer, audience, expiry and `email_verified` are. The sign-in `state` is signed
+  and bound to a random cookie value only the starting browser has, which blocks login CSRF. When
+  accounts can be anonymized or deleted, that code must also delete the user's
+  `external_identities` rows (deleting the user already cascades).
 - Password reset: `POST /api/auth/forgot-password` answers `202` with the same words for every
   address (known, unknown, deactivated) and sends a link only to an active account, at most 3
   links per hour per account (silently, so the limit cannot be used to probe). `POST
@@ -119,7 +125,8 @@ This section covers how it's implemented and how it fails.
 - Fields requiring extra protection: `password_hash`, session tokens (`Session`) stored only as hashes; invitation and
   `UserToken` links are signed with `SECRET_KEY` and not stored (see Authentication); `GoogleCalendarConnection.refresh_token_encrypted`;
   candidate PII and `Note`/`Scorecard` content never written to logs. Secrets that travel in a web
-  address (Google's one-time `code` and our signed `state` on `/api/calendar/callback`, and the
+  address (Google's one-time `code` and our signed `state` on `/api/calendar/callback` and
+  `/api/auth/google/callback`, and the
   `token` in emailed links) are blanked from the server's access log by a filter
   (`app/logging.py`, installed at startup). Railway's own edge logs, which we do not control,
   can still show them: the code works once and is useless without the client secret, and the
