@@ -186,7 +186,11 @@ The roles table above says *what* each role can do. This section says *how*.
 - **Trigger:** "New job" on the Jobs page; the job's own page.
 - **Main flow:** Title, location, department and description are entered; the job starts as a
   draft. A recruiter who creates it is assigned to it; an admin who creates it is not (an admin is
-  not a recruiter) and adds recruiters afterwards. The job is edited while it is a draft or open,
+  not a recruiter), so the New job form lets an admin tick the recruiters the job starts with
+  (optional; more can be added or removed later on the job's page). The job and those recruiters
+  are saved together, each written to the audit log as `job.recruiter_added`; the API takes them as
+  `recruiter_ids` (at most 50, each an active recruiter of the caller's company, otherwise the
+  whole request is refused with `invalid_recruiter` and nothing is created). The job is edited while it is a draft or open,
   then published (open) and later closed. A draft can be deleted instead. Recruiters on a job are
   added by an admin or by a recruiter already on it, and removed the same way.
 - **Rules & edge cases:** The list shows an admin every job of the company and a recruiter only the

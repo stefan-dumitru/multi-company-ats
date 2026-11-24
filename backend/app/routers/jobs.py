@@ -99,10 +99,11 @@ def create_job(
         location=payload.location,
         description=payload.description,
         department_id=payload.department_id,
+        recruiter_ids=payload.recruiter_ids,
         now=datetime.now(UTC),
     )
     out = job_out(jobs_service.job_detail(db, job))
-    db.commit()  # the job, its first recruiter and the audit row: one transaction
+    db.commit()  # the job, its recruiters and the audit rows: one transaction
     return out
 
 

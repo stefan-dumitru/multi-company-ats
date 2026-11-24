@@ -135,6 +135,130 @@ def test_an_admin_creates_a_draft_without_being_assigned(
     assert response.json()["needs_reassignment"] is True
 
 
+def test_an_admin_can_choose_recruiters_when_creating_the_job(
+    client: TestClient, db: Session, world: World
+) -> None:
+    admin = Browser(client, db, world.admin)
+
+    response = create_job(
+        admin, world.engineering, recruiter_ids=[str(world.rec1.id), str(world.rec2.id)]
+    )
+
+    assert response.status_code == 201
+    body = response.json()
+    assert {r["id"] for r in body["recruiters"]} == {str(world.rec1.id), str(world.rec2.id)}
+    assert body["needs_reassignment"] is False
+    assert recruiter_ids(db, body["id"]) == {str(world.rec1.id), str(world.rec2.id)}
+    # The job and each recruiter's assignment are audited, together.
+    assert sorted(audit_actions(db)) == [
+        "job.created",
+        "job.recruiter_added",
+        "job.recruiter_added",
+    ]
+    # Each chosen recruiter sees the job, and it can be published straight away.
+    for chosen in (world.rec1, world.rec2):
+        listed = Browser(client, db, chosen).send("GET", "/api/jobs").json()["items"]
+        assert [job["id"] for job in listed] == [body["id"]]
+    # (Logging in as the recruiters replaced the admin's cookie, so log the admin in again.)
+    again = Browser(client, db, world.admin)
+    assert post(again, body["id"], "publish", body["version"]).status_code == 200
+
+
+def test_the_recruiters_are_optional_when_creating_a_job(
+    client: TestClient, db: Session, world: World
+) -> None:
+    admin = Browser(client, db, world.admin)
+
+    without = create_job(admin, world.engineering)
+    empty = create_job(admin, world.engineering, recruiter_ids=[])
+
+    assert without.status_code == empty.status_code == 201
+    assert without.json()["recruiters"] == empty.json()["recruiters"] == []
+    assert audit_actions(db) == ["job.created", "job.created"]
+
+
+def test_choosing_the_same_recruiter_twice_assigns_them_once(
+    client: TestClient, db: Session, world: World
+) -> None:
+    response = create_job(
+        Browser(client, db, world.admin),
+        world.engineering,
+        recruiter_ids=[str(world.rec1.id), str(world.rec1.id)],
+    )
+
+    assert response.status_code == 201
+    assert recruiter_ids(db, response.json()["id"]) == {str(world.rec1.id)}
+    assert sorted(audit_actions(db)) == ["job.created", "job.recruiter_added"]
+
+
+def test_a_recruiter_who_lists_themselves_is_not_assigned_twice(
+    client: TestClient, db: Session, world: World
+) -> None:
+    response = create_job(
+        Browser(client, db, world.rec1),
+        world.engineering,
+        recruiter_ids=[str(world.rec1.id), str(world.rec2.id)],
+    )
+
+    assert response.status_code == 201
+    assert recruiter_ids(db, response.json()["id"]) == {str(world.rec1.id), str(world.rec2.id)}
+    # Their own place is the automatic one; only the colleague is "added".
+    assert sorted(audit_actions(db)) == ["job.created", "job.recruiter_added"]
+
+
+def test_only_active_recruiters_of_the_same_company_can_be_chosen_and_nothing_is_created_otherwise(
+    client: TestClient, db: Session, world: World
+) -> None:
+    deactivated = make_user(db, email="gone@acme.test", role=Role.RECRUITER, company=world.acme)
+    deactivated.is_active = False
+    candidate = make_user(db, email="cand@example.test", role=Role.CANDIDATE, company=None)
+    db.commit()
+    admin = Browser(client, db, world.admin)
+
+    unusable = [
+        world.interviewer,
+        world.admin,
+        deactivated,
+        candidate,
+        world.globex_rec,  # another company's recruiter
+    ]
+    responses = [
+        # A usable recruiter beside the bad one must not let the job through.
+        create_job(admin, world.engineering, recruiter_ids=[str(world.rec1.id), str(person.id)])
+        for person in unusable
+    ] + [create_job(admin, world.engineering, recruiter_ids=[str(uuid.uuid4())])]
+
+    assert {r.status_code for r in responses} == {422}
+    assert all(r.json()["code"] == "invalid_recruiter" for r in responses)
+    # A foreign recruiter looks exactly like an unknown id.
+    assert responses[4].json() == responses[5].json()
+    db.expire_all()
+    assert db.scalar(select(func.count()).select_from(Job)) == 0
+    assert db.scalar(select(func.count()).select_from(JobRecruiter)) == 0
+    assert audit_actions(db) == []
+
+
+@pytest.mark.parametrize(
+    "bad",
+    [
+        "not-a-list",
+        ["not-a-uuid"],
+        [None],
+        [str(uuid.uuid4()) for _ in range(51)],  # distinct, so only the size can be the reason
+    ],
+)
+def test_a_malformed_or_oversized_recruiter_list_is_refused(
+    client: TestClient, db: Session, world: World, bad: Any
+) -> None:
+    response = create_job(Browser(client, db, world.admin), world.engineering, recruiter_ids=bad)
+
+    assert response.status_code == 422
+    # Refused for its shape, before the recruiter rule is even looked at.
+    assert response.json().get("code") != "invalid_recruiter"
+    db.expire_all()
+    assert db.scalar(select(func.count()).select_from(Job)) == 0
+
+
 @pytest.mark.parametrize(
     "bad",
     [

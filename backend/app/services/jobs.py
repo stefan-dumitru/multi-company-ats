@@ -172,11 +172,14 @@ def create_job(
     location: str,
     description: str,
     department_id: uuid.UUID,
+    recruiter_ids: list[uuid.UUID],
     now: datetime,
 ) -> Job:
     if user.company_id is None or user.role not in (Role.COMPANY_ADMIN, Role.RECRUITER):
         raise NotFoundError
     department = _usable_department(db, user, department_id)
+    # Checked before anything is written, so a bad id leaves no half-made job behind.
+    chosen = _usable_recruiters(db, user, recruiter_ids)
     job = Job(
         company_id=user.company_id,
         department_id=department.id,
@@ -201,8 +204,50 @@ def create_job(
         new_value={"status": "draft", "department_id": str(department.id)},
         now=now,
     )
+    for recruiter in chosen:
+        if recruiter.id == user.id:
+            continue  # the creator already has their automatic place
+        db.add(JobRecruiter(job_id=job.id, user_id=recruiter.id, added_by=user.id))
+        _audit_recruiter_added(db, user, job, recruiter, now)
     db.flush()
     return job
+
+
+def _usable_recruiters(db: Session, user: User, recruiter_ids: list[uuid.UUID]) -> list[User]:
+    """The people behind these ids, in the order given, each once. Every one must be an active
+    recruiter of the user's company; if any is not, the answer is the same whatever the reason."""
+    wanted = list(dict.fromkeys(recruiter_ids))  # duplicates dropped, order kept
+    if not wanted:
+        return []
+    found = {
+        person.id: person
+        for person in db.scalars(
+            select(User).where(
+                User.id.in_(wanted),
+                User.company_id == user.company_id,
+                User.role == Role.RECRUITER,
+                User.is_active.is_(True),
+            )
+        )
+    }
+    if len(found) != len(wanted):
+        raise InvalidRecruiter
+    return [found[person_id] for person_id in wanted]
+
+
+def _audit_recruiter_added(
+    db: Session, user: User, job: Job, recruiter: User, now: datetime
+) -> None:
+    record_audit(
+        db,
+        actor=user,
+        action="job.recruiter_added",
+        entity_type="job",
+        entity_id=job.id,
+        old_value=None,
+        new_value={"user_id": str(recruiter.id)},
+        now=now,
+    )
 
 
 def _check_version(job: Job, version: int) -> None:
@@ -328,16 +373,7 @@ def assign_recruiter(
     if db.get(JobRecruiter, (job.id, recruiter.id)) is not None:
         return job  # already assigned: nothing to do
     db.add(JobRecruiter(job_id=job.id, user_id=recruiter.id, added_by=user.id))
-    record_audit(
-        db,
-        actor=user,
-        action="job.recruiter_added",
-        entity_type="job",
-        entity_id=job.id,
-        old_value=None,
-        new_value={"user_id": str(recruiter.id)},
-        now=now,
-    )
+    _audit_recruiter_added(db, user, job, recruiter, now)
     db.flush()
     return job
 

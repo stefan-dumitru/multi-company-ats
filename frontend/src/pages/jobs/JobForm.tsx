@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select'
 import { Textarea } from '@/components/ui/textarea'
+import RecruiterPicker from './RecruiterPicker'
 import type { DepartmentChoice } from './types'
 
 export interface JobFormValues {
@@ -13,11 +14,15 @@ export interface JobFormValues {
   location: string
   department_id: string
   description: string
+  /** Only present on a new job, when the form offered the choice. */
+  recruiter_ids?: string[]
 }
 
 interface JobFormProps {
   departments: DepartmentChoice[]
   initial?: JobFormValues
+  /** Offer the choice of recruiters (a new job made by an admin, who is not on it themselves). */
+  chooseRecruiters?: boolean
   submitLabel: string
   /** Sends the job. Rejects with an error whose message the form shows; the values stay. */
   onSubmit: (values: JobFormValues) => Promise<void>
@@ -32,10 +37,12 @@ const MAX_DESCRIPTION = 20_000
 export default function JobForm({
   departments,
   initial = EMPTY,
+  chooseRecruiters = false,
   submitLabel,
   onSubmit,
 }: JobFormProps) {
   const [values, setValues] = useState<JobFormValues>(initial)
+  const [recruiterIds, setRecruiterIds] = useState<string[]>([])
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const busy = useRef(false) // stops a second click before React has re-rendered the button
@@ -51,7 +58,7 @@ export default function JobForm({
     setError('')
     setSubmitting(true)
     try {
-      await onSubmit(values)
+      await onSubmit(chooseRecruiters ? { ...values, recruiter_ids: recruiterIds } : values)
     } catch (failure) {
       setError(messageOf(failure))
     } finally {
@@ -103,6 +110,7 @@ export default function JobForm({
           required
         />
       </div>
+      {chooseRecruiters && <RecruiterPicker selected={recruiterIds} onChange={setRecruiterIds} />}
       <div className="flex items-center gap-3">
         <Button type="submit" disabled={submitting}>
           {submitting ? 'Saving…' : submitLabel}

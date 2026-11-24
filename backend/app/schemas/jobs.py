@@ -13,6 +13,9 @@ JobDescription = Annotated[
 ]
 
 
+MAX_NEW_RECRUITERS = 50
+
+
 class CreateJobRequest(BaseModel):
     """What a person writes. The status, creator and company are never taken from the request."""
 
@@ -22,6 +25,9 @@ class CreateJobRequest(BaseModel):
     location: JobLocation
     description: JobDescription
     department_id: uuid.UUID
+    # Recruiters to put on the job right away (an admin is not one, so would otherwise add them
+    # afterwards). Optional; each must be an active recruiter of the caller's company.
+    recruiter_ids: list[uuid.UUID] = Field(default_factory=list, max_length=MAX_NEW_RECRUITERS)
 
 
 class UpdateJobRequest(BaseModel):

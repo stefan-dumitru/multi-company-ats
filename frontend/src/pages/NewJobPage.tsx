@@ -49,6 +49,7 @@ export default function NewJobPage() {
       {departments.data && departments.data.items.length > 0 && (
         <JobForm
           departments={departments.data.items}
+          chooseRecruiters={isAdmin}
           submitLabel="Create job"
           onSubmit={createJob}
         />
